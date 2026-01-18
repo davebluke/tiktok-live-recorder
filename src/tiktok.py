@@ -183,6 +183,10 @@ class TikTok:
              # Just in case it bubbles up here
              return "MANUAL_STOP"
         
+        # If we exit loop naturally or via non-manual stop logic (though loop handles most)
+        if 'status' in locals() and status == "MANUAL_STOP":
+            return "MANUAL_STOP"
+            
         return "FINISHED"
         # ----------------------------
 
@@ -220,7 +224,12 @@ class TikTok:
                     break
                 
                 # Wait before checking again (Automatic mode)
-                time.sleep(self.interval * 60)
+                try:
+                    time.sleep(self.interval * 60)
+                except KeyboardInterrupt:
+                    # If CTRL+C during sleep
+                    print("\n[*] Stopped by user during wait.")
+                    break
 
             except KeyboardInterrupt:
                 print("\n[*] Stopped by user.")
