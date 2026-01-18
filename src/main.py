@@ -1,127 +1,46 @@
+import argparse
 import sys
 import os
-import multiprocessing
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Ensure the script directory is in sys.path so we can import local modules
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
 
-
-def record_user(
-    user, url, room_id, mode, interval, proxy, output, duration, use_telegram, cookies
-):
-    from core.tiktok_recorder import TikTokRecorder
-    from utils.logger_manager import logger
-
+try:
+    # Try importing directly first (if running from src)
+    from tiktok import TikTok
+except ImportError:
     try:
-        TikTokRecorder(
-            url=url,
-            user=user,
-            room_id=room_id,
-            mode=mode,
-            automatic_interval=interval,
-            cookies=cookies,
-            proxy=proxy,
-            output=output,
-            duration=duration,
-            use_telegram=use_telegram,
-        ).run()
-    except Exception as e:
-        logger.error(f"{e}")
-
-
-def run_recordings(args, mode, cookies):
-    if isinstance(args.user, list):
-        processes = []
-        for user in args.user:
-            p = multiprocessing.Process(
-                target=record_user,
-                args=(
-                    user,
-                    args.url,
-                    args.room_id,
-                    mode,
-                    args.automatic_interval,
-                    args.proxy,
-                    args.output,
-                    args.duration,
-                    args.telegram,
-                    cookies,
-                ),
-            )
-            p.start()
-            processes.append(p)
-        try:
-            for p in processes:
-                p.join()
-        except KeyboardInterrupt:
-            print("\n[!] Ctrl-C detected.")
-            try:
-                for p in processes:
-                    p.join()
-            except KeyboardInterrupt:
-                print("\n[!] Forcefully terminating all processes.")
-                for p in processes:
-                    if p.is_alive():
-                        p.terminate()
-    else:
-        record_user(
-            args.user,
-            args.url,
-            args.room_id,
-            mode,
-            args.automatic_interval,
-            args.proxy,
-            args.output,
-            args.duration,
-            args.telegram,
-            cookies,
-        )
-
+        # Try importing from src package (if running from root)
+        from src.tiktok import TikTok
+    except ImportError as e:
+        print("[!] Error: Could not import 'TikTok' module.")
+        print("    If you are missing dependencies, run: pip install -r requirements.txt")
+        print(f"    Native Error: {e}")
+        sys.exit(1)
 
 def main():
-    from utils.args_handler import validate_and_parse_args
-    from utils.utils import read_cookies
-    from utils.logger_manager import logger
-    from utils.custom_exceptions import TikTokRecorderError
-    from check_updates import check_updates
+    parser = argparse.ArgumentParser(description="TikTok Live Recorder")
+    
+    parser.add_argument("-user", required=True, help="TikTok Username")
+    parser.add_argument("-mode", default="manual", help="manual or automatic")
+    parser.add_argument("-output", default="./downloads", help="Output directory")
+    parser.add_argument("-ffmpeg", default="ffmpeg", help="Path to ffmpeg (optional)")
+    
+    args = parser.parse_args()
 
-    try:
-        # validate and parse command line arguments
-        args, mode = validate_and_parse_args()
-
-        # check for updates
-        if args.update_check is True:
-            logger.info("Checking for updates...\n")
-            if check_updates():
-                exit()
-        else:
-            logger.info("Skipped update check\n")
-
-        # read cookies from the config file
-        cookies = read_cookies()
-
-        # run the recordings based on the parsed arguments
-        run_recordings(args, mode, cookies)
-
-    except TikTokRecorderError as ex:
-        logger.error(f"Application Error: {ex}")
-
-    except Exception as ex:
-        logger.critical(f"Generic Error: {ex}", exc_info=True)
-
+    # Create the bot instance
+    # The 'run' method in src/tiktok.py already handles the smart recording logic
+    bot = TikTok(
+        output=args.output,
+        mode=args.mode,
+        user=args.user,
+        ffmpeg=args.ffmpeg
+    )
+    
+    print(f"[*] Starting TikTok Recorder for {args.user} in {args.mode} mode...")
+    bot.run()
 
 if __name__ == "__main__":
-    # print the banner
-    from utils.utils import banner
-
-    banner()
-
-    # check and install dependencies
-    from utils.dependencies import check_and_install_dependencies
-
-    check_and_install_dependencies()
-
-    # set up signal handling for graceful shutdown
-    multiprocessing.freeze_support()
-
-    # run
     main()
