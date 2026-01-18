@@ -11,11 +11,7 @@ try:
 except ImportError:
     # Fallback if running from root without package context
     from smart_recorder import record_stream
-try:
-    from src.smart_recorder import record_stream
-except ImportError:
-    # Fallback if running from root without package context
-    from smart_recorder import record_stream
+
 # -------------------------------------------
 
 # ANSI Colors

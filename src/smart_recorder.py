@@ -29,7 +29,6 @@ def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
     current_res = None
 
     try:
-    try:
         while True:
             try:
                 line = process.stderr.readline()
