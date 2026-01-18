@@ -27,6 +27,8 @@ def main():
     parser.add_argument("-mode", default="manual", help="manual or automatic")
     parser.add_argument("-output", default="./downloads", help="Output directory")
     parser.add_argument("-ffmpeg", default="ffmpeg", help="Path to ffmpeg (optional)")
+    parser.add_argument("-automatic_interval", type=float, default=5.0, help="Time between checks in minutes (default: 5)")
+    parser.add_argument("-duration", type=int, default=None, help="Duration in seconds (not fully implemented yet)")
     
     args = parser.parse_args()
 
@@ -36,7 +38,8 @@ def main():
         output=args.output,
         mode=args.mode,
         user=args.user,
-        ffmpeg=args.ffmpeg
+        ffmpeg=args.ffmpeg,
+        interval=args.automatic_interval
     )
     
     print(f"[*] Starting TikTok Recorder for {args.user} in {args.mode} mode...")

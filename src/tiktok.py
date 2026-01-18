@@ -14,11 +14,12 @@ except ImportError:
 # -------------------------------------------
 
 class TikTok:
-    def __init__(self, output, mode, user, ffmpeg="ffmpeg", update_check=True):
+    def __init__(self, output, mode, user, ffmpeg="ffmpeg", interval=5, update_check=True):
         self.output = output
         self.mode = mode
         self.user = user
         self.ffmpeg = ffmpeg
+        self.interval = interval
         self.update_check = update_check
         
         # Headers mimicking a real browser to avoid detection
@@ -71,8 +72,16 @@ class TikTok:
             response = requests.get(url, headers=self.headers).json()
             
             # Extract stream URL
-            if "data" in response and "stream_url" in response["data"]:
-                stream_info = response["data"]["stream_url"]
+            if "data" in response:
+                data = response["data"]
+                
+                # Check live status (2 = Live, 4 = Finish/Offline)
+                status = data.get("status")
+                if status != 2:
+                    return None
+
+                if "stream_url" in data:
+                    stream_info = data["stream_url"]
                 
                 # Priority: FLV Pull URL -> RTMP Pull URL
                 if "flv_pull_url" in stream_info:
@@ -147,16 +156,17 @@ class TikTok:
         
         while True:
             try:
-                room_id, live_status = self.is_live()
+                room_id = self.get_room_id()
                 
-                if live_status:
-                    print(f"[*] {self.user} is LIVE! (Room ID: {room_id})")
+                if room_id:
+                    # Check if actually live via API
                     stream_url = self.get_stream_url(room_id)
                     
                     if stream_url:
+                        print(f"[*] {self.user} is LIVE! (Room ID: {room_id})")
                         self.start_recording(stream_url)
                     else:
-                        print("[!] Error: Could not retrieve stream URL despite user being live.")
+                        print(f"[*] {self.user} is offline. Checking again...", end="\r")
                 else:
                     print(f"[*] {self.user} is offline. Checking again...", end="\r")
 
@@ -164,7 +174,7 @@ class TikTok:
                     break
                 
                 # Wait before checking again (Automatic mode)
-                time.sleep(10) # Checks every 10 seconds
+                time.sleep(self.interval * 60)
 
             except KeyboardInterrupt:
                 print("\n[*] Stopped by user.")
