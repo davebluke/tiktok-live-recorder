@@ -5,7 +5,8 @@ import time
 from datetime import datetime
 
 # Regex to catch resolution from FFmpeg logs
-RESOLUTION_PATTERN = re.compile(r"Stream #.*Video:.* (\d{3,4}x\d{3,4})")
+# More permissive pattern to catch standard ffmpeg output
+RESOLUTION_PATTERN = re.compile(r"Video:.* (\d{3,4}x\d{3,4})")
 
 def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
     """
@@ -36,6 +37,9 @@ def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
                     return "FINISHED"
 
                 if line:
+                    # Debug print to see what ffmpeg is outputting (optional, maybe distracting)
+                    # print(f"[DEBUG] {line.strip()}") 
+                    
                     match = RESOLUTION_PATTERN.search(line)
                     if match:
                         new_res = match.group(1)

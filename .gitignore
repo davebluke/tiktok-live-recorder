@@ -110,6 +110,7 @@ ENV/
 env.bak/
 venv.bak/
 src/cookies.json
+/src/cookies.json
 
 # Spyder project settings
 .spyderproject

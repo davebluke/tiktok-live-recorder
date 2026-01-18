@@ -4,6 +4,10 @@ import logging
 import requests
 import re
 from datetime import datetime
+import colorama
+
+# Initialize colorama for Windows support
+colorama.init()
 
 # --- NEW IMPORT FOR RESOLUTION DETECTION ---
 try:
@@ -177,7 +181,9 @@ class TikTok:
                     
         except KeyboardInterrupt:
              # Just in case it bubbles up here
-             pass
+             return "MANUAL_STOP"
+        
+        return "FINISHED"
         # ----------------------------
 
     def run(self):
@@ -197,7 +203,14 @@ class TikTok:
                     
                     if stream_url:
                         print(f"[*] {GREEN}{self.user} is LIVE!{RESET} (Room ID: {room_id})")
-                        self.start_recording(stream_url)
+                        status = self.start_recording(stream_url)
+                        
+                        # If user stopped it manually, we might want to continue checking
+                        # or just wait a short moment instead of full interval
+                        if status == "MANUAL_STOP":
+                             print(f"[*] Manual stop detected. Resuming monitoring in 3 seconds...")
+                             time.sleep(3)
+                             continue
                     else:
                         print(f"[*] {RED}{self.user} is offline.{RESET} Checking again...", end="\r")
                 else:
