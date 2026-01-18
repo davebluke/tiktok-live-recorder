@@ -2,72 +2,183 @@ import subprocess
 import re
 import os
 import time
+import threading
 from datetime import datetime
 
-# Regex to catch resolution from FFmpeg logs
-# Matches pattern like "Stream #0:0: Video: h264, yuv420p, 1280x720,"
-RESOLUTION_PATTERN = re.compile(r"Video:.*,\s*(\d{3,4}x\d{3,4})")
+# Regex to catch resolution from FFprobe JSON output
+RESOLUTION_PATTERN = re.compile(r'"width"\s*:\s*(\d+).*?"height"\s*:\s*(\d+)', re.DOTALL)
+
+
+class ResolutionMonitor:
+    """
+    Monitors a stream URL for resolution changes using ffprobe.
+    Runs in a separate thread and sets a flag when resolution changes.
+    """
+    
+    def __init__(self, stream_url, ffprobe_path="ffprobe", poll_interval=3):
+        self.stream_url = stream_url
+        self.ffprobe_path = ffprobe_path
+        self.poll_interval = poll_interval
+        
+        self.current_resolution = None
+        self.resolution_changed = threading.Event()
+        self.new_resolution = None
+        self.stop_event = threading.Event()
+        self._thread = None
+    
+    def get_stream_resolution(self):
+        """
+        Uses ffprobe to get the current resolution of the stream.
+        Returns tuple (width, height) or None if failed.
+        """
+        cmd = [
+            self.ffprobe_path,
+            "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=width,height",
+            "-of", "json",
+            "-timeout", "5000000",  # 5 second timeout in microseconds
+            self.stream_url
+        ]
+        
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=10,
+                encoding="utf-8",
+                errors="replace"
+            )
+            
+            if result.returncode == 0:
+                match = RESOLUTION_PATTERN.search(result.stdout)
+                if match:
+                    width = int(match.group(1))
+                    height = int(match.group(2))
+                    return (width, height)
+        except subprocess.TimeoutExpired:
+            pass
+        except Exception as e:
+            print(f"[!] ffprobe error: {e}")
+        
+        return None
+    
+    def _monitor_loop(self):
+        """
+        Main monitoring loop that runs in a thread.
+        Polls the stream resolution and checks for changes.
+        """
+        while not self.stop_event.is_set():
+            resolution = self.get_stream_resolution()
+            
+            if resolution:
+                if self.current_resolution is None:
+                    # First detection
+                    self.current_resolution = resolution
+                    print(f"[*] Resolution: {resolution[0]}x{resolution[1]}")
+                elif resolution != self.current_resolution:
+                    # Resolution changed!
+                    old_res = self.current_resolution
+                    self.new_resolution = resolution
+                    print(f"\n[!] Resolution Change: {old_res[0]}x{old_res[1]} -> {resolution[0]}x{resolution[1]}")
+                    self.resolution_changed.set()
+                    return  # Exit the monitor loop
+            
+            # Wait for poll interval or until stopped
+            self.stop_event.wait(timeout=self.poll_interval)
+    
+    def start(self):
+        """Start the resolution monitoring thread."""
+        self._thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self._thread.start()
+    
+    def stop(self):
+        """Stop the resolution monitoring thread."""
+        self.stop_event.set()
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=2)
+    
+    def has_changed(self):
+        """Check if resolution has changed."""
+        return self.resolution_changed.is_set()
+
 
 def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
     """
     Records the stream and restarts if resolution changes.
-    Returns: 'FINISHED', 'RESTART', or 'ERROR'
+    Returns: 'FINISHED', 'RESTART', 'ERROR', or 'MANUAL_STOP'
     """
     print(f"[*] [SmartRecorder] Starting: {os.path.basename(output_file)}")
     
-    # Dual-output magic: Copy to file + Decode to null (for logs)
+    # Derive ffprobe path from ffmpeg path
+    if ffmpeg_path.endswith("ffmpeg") or ffmpeg_path.endswith("ffmpeg.exe"):
+        ffprobe_path = ffmpeg_path.replace("ffmpeg", "ffprobe")
+    else:
+        ffprobe_path = "ffprobe"
+    
+    # Start resolution monitor
+    monitor = ResolutionMonitor(stream_url, ffprobe_path=ffprobe_path, poll_interval=3)
+    monitor.start()
+    
+    # Wait briefly for initial resolution detection
+    time.sleep(1)
+    
+    # Simple FFmpeg command - just record, no dual-output needed
     cmd = [
-        ffmpeg_path, "-y", "-loglevel", "info", "-i", stream_url,
-        "-map", "0", "-c", "copy", output_file,       # Main output
-        "-map", "0:v", "-f", "null", "-"               # Log trigger
+        ffmpeg_path, "-y", "-loglevel", "warning",
+        "-i", stream_url,
+        "-c", "copy",
+        output_file
     ]
 
     process = None
     try:
         process = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            universal_newlines=True, encoding="utf-8", errors="replace"
+            cmd, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE,
+            universal_newlines=True, 
+            encoding="utf-8", 
+            errors="replace"
         )
     except Exception as e:
         print(f"[!] FFmpeg launch failed: {e}")
+        monitor.stop()
         return "ERROR"
 
-    current_res = None
-    
     try:
         while True:
-            # Check for generic stops
-            if process.poll() is not None:
-                return "FINISHED"
-
-            try:
-                line = process.stderr.readline()
-                
-                if not line:
-                    continue
-
-                # Regex search
-                match = RESOLUTION_PATTERN.search(line)
-                if match:
-                    new_res = match.group(1)
-                    if current_res is None:
-                        current_res = new_res
-                        print(f"[*] Resolution: {current_res}")
-                    elif new_res != current_res:
-                        print(f"\n[!] Resolution Change: {current_res} -> {new_res}")
-                        print("[!] Restarting session...")
-                        process.terminate()
-                        try:
-                            process.wait(timeout=5)
-                        except subprocess.TimeoutExpired:
-                            process.kill()
-                        return "RESTART"
+            # Check if FFmpeg has stopped
+            exit_code = process.poll()
+            if exit_code is not None:
+                monitor.stop()
+                if exit_code == 0:
+                    return "FINISHED"
+                else:
+                    # Read any error output
+                    stderr_output = process.stderr.read() if process.stderr else ""
+                    if stderr_output:
+                        print(f"[!] FFmpeg stderr: {stderr_output[:500]}")
+                    return "FINISHED"  # Stream probably ended
             
-            except UnicodeDecodeError:
-                pass 
+            # Check for resolution change
+            if monitor.has_changed():
+                print("[!] Restarting session due to resolution change...")
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                monitor.stop()
+                return "RESTART"
+            
+            # Small sleep to prevent busy-waiting
+            time.sleep(0.5)
 
     except KeyboardInterrupt:
-        print(f"\n[*] Gracefully stopping recording (CTRL+C received in SmartRecorder)...")
+        print(f"\n[*] Gracefully stopping recording (CTRL+C received)...")
+        monitor.stop()
         if process:
             process.terminate()
             try:
@@ -78,6 +189,7 @@ def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
                 
     except Exception as e:
         print(f"[!] Recorder Error: {e}")
+        monitor.stop()
         if process:
             try:
                 process.terminate()
