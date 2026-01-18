@@ -29,30 +29,45 @@ def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
     current_res = None
 
     try:
+    try:
         while True:
-            line = process.stderr.readline()
-            if not line and process.poll() is not None:
-                return "FINISHED"
+            try:
+                line = process.stderr.readline()
+                if not line and process.poll() is not None:
+                    return "FINISHED"
 
-            if line:
-                match = RESOLUTION_PATTERN.search(line)
-                if match:
-                    new_res = match.group(1)
-                    if current_res is None:
-                        current_res = new_res
-                        print(f"[*] Resolution: {current_res}")
-                    elif new_res != current_res:
-                        print(f"\n[!] Resolution Change: {current_res} -> {new_res}")
-                        print("[!] Restarting session...")
-                        process.terminate()
-                        try:
-                            process.wait(timeout=5)
-                        except:
-                            process.kill()
-                        return "RESTART"
+                if line:
+                    match = RESOLUTION_PATTERN.search(line)
+                    if match:
+                        new_res = match.group(1)
+                        if current_res is None:
+                            current_res = new_res
+                            print(f"[*] Resolution: {current_res}")
+                        elif new_res != current_res:
+                            print(f"\n[!] Resolution Change: {current_res} -> {new_res}")
+                            print("[!] Restarting session...")
+                            process.terminate()
+                            try:
+                                process.wait(timeout=5)
+                            except:
+                                process.kill()
+                            return "RESTART"
+                            
+            except KeyboardInterrupt:
+                print(f"\n[*] Gracefully stopping recording...")
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except:
+                    process.kill()
+                return "MANUAL_STOP"
+                
     except Exception as e:
         print(f"[!] Recorder Error: {e}")
-        process.kill()
+        try:
+            process.kill()
+        except:
+            pass
         return "ERROR"
     
     return "FINISHED"

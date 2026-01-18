@@ -11,7 +11,17 @@ try:
 except ImportError:
     # Fallback if running from root without package context
     from smart_recorder import record_stream
+try:
+    from src.smart_recorder import record_stream
+except ImportError:
+    # Fallback if running from root without package context
+    from smart_recorder import record_stream
 # -------------------------------------------
+
+# ANSI Colors
+GREEN = "\033[92m"
+RED = "\033[91m"
+RESET = "\033[0m"
 
 class TikTok:
     def __init__(self, output, mode, user, ffmpeg="ffmpeg", interval=5, update_check=True):
@@ -119,32 +129,59 @@ class TikTok:
         print(f"[*] [TikTok] Output: {output_path}")
 
         # --- SMART RECORDING LOOP ---
-        while True:
-            # Pass execution to the smart recorder module
-            # status will be: "FINISHED", "RESTART", or "ERROR"
-            status = record_stream(stream_url, output_path, self.ffmpeg)
-            
-            if status == "RESTART":
-                # Resolution changed!
-                print(f"[*] [TikTok] Restarting recording session due to resolution change...")
+        # --- SMART RECORDING LOOP ---
+        try:
+            while True:
+                # Use a temp filename while recording
+                # e.g. user_date.mp4 -> user_date_flv.mp4
+                if filename.endswith(".mp4"):
+                    temp_filename = filename.replace(".mp4", "_flv.mp4")
+                else:
+                    temp_filename = f"{filename}_flv.mp4"
                 
-                # Create a new filename for the next part
-                # Format: user_Date_Time_Part2.mp4
-                timestamp = datetime.now().strftime("%H-%M-%S")
-                base_name = f"{self.user}_{current_date}_{timestamp}.mp4"
-                output_path = os.path.join(self.output, base_name)
+                temp_path = os.path.join(self.output, temp_filename)
                 
-                # Small buffer to let the OS release file locks
-                time.sleep(1)
-                continue 
-            
-            elif status == "FINISHED":
-                print(f"[*] [TikTok] Stream ended naturally.")
-                break
-            
-            elif status == "ERROR":
-                print(f"[!] [TikTok] An error occurred while recording.")
-                break
+                # Pass execution to the smart recorder module
+                # status will be: "FINISHED", "RESTART", "ERROR", or "MANUAL_STOP"
+                status = record_stream(stream_url, temp_path, self.ffmpeg)
+                
+                # Rename the file to its final name (remove _flv suffix)
+                if os.path.exists(temp_path):
+                    try:
+                        os.rename(temp_path, output_path)
+                    except OSError as e:
+                        print(f"[!] Warning: Could not rename file: {e}")
+
+                if status == "RESTART":
+                    # Resolution changed!
+                    print(f"[*] [TikTok] Restarting recording session due to resolution change...")
+                    
+                    # Create a new filename for the next part
+                    # Format: user_Date_Time_Part2.mp4
+                    timestamp = datetime.now().strftime("%H-%M-%S")
+                    base_name = f"{self.user}_{current_date}_{timestamp}.mp4"
+                    filename = base_name # Update filename for next loop
+                    output_path = os.path.join(self.output, base_name)
+                    
+                    # Small buffer to let the OS release file locks
+                    time.sleep(1)
+                    continue 
+                
+                elif status == "FINISHED":
+                    print(f"[*] [TikTok] Stream ended naturally.")
+                    break
+                
+                elif status == "MANUAL_STOP":
+                    print(f"[*] [TikTok] Recording stopped by user.")
+                    break
+                
+                elif status == "ERROR":
+                    print(f"[!] [TikTok] An error occurred while recording.")
+                    break
+                    
+        except KeyboardInterrupt:
+             # Just in case it bubbles up here
+             pass
         # ----------------------------
 
     def run(self):
@@ -163,12 +200,12 @@ class TikTok:
                     stream_url = self.get_stream_url(room_id)
                     
                     if stream_url:
-                        print(f"[*] {self.user} is LIVE! (Room ID: {room_id})")
+                        print(f"[*] {GREEN}{self.user} is LIVE!{RESET} (Room ID: {room_id})")
                         self.start_recording(stream_url)
                     else:
-                        print(f"[*] {self.user} is offline. Checking again...", end="\r")
+                        print(f"[*] {RED}{self.user} is offline.{RESET} Checking again...", end="\r")
                 else:
-                    print(f"[*] {self.user} is offline. Checking again...", end="\r")
+                    print(f"[*] {RED}{self.user} is offline.{RESET} Checking again...", end="\r")
 
                 if self.mode == "manual":
                     break
