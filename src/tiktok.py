@@ -102,27 +102,34 @@ class TikTok:
                     flv_urls = stream_info["flv_pull_url"]
                     print(f"[*] Available qualities: {list(flv_urls.keys())}")
                     
-                    # Parse resolution from URLs and select highest
-                    # Resolution is typically in format like "640x1280" in the URL
-                    # NOTE: Some URLs may contain multiple resolution patterns, so we find ALL
-                    # and return the highest resolution found
-                    def extract_resolution(url):
-                        """Extract resolution (width x height) from URL and return total pixels and dimensions."""
+                    # Use ffprobe to detect actual resolution of each stream
+                    import subprocess
+                    
+                    def probe_stream_resolution(url, timeout=8):
+                        """Use ffprobe to detect actual stream resolution."""
                         if not url:
                             return 0, None
-                        # Find ALL resolution patterns in the URL (3-5 digits for future proofing)
-                        matches = re.findall(r'(\d{3,5})x(\d{3,5})', url)
-                        if matches:
-                            best_pixels = 0
-                            best_dims = None
-                            for w, h in matches:
-                                width = int(w)
-                                height = int(h)
-                                pixels = width * height
-                                if pixels > best_pixels:
-                                    best_pixels = pixels
-                                    best_dims = (width, height)
-                            return best_pixels, best_dims
+                        try:
+                            cmd = [
+                                "ffprobe", "-v", "error",
+                                "-select_streams", "v:0",
+                                "-show_entries", "stream=width,height",
+                                "-of", "csv=p=0",
+                                "-timeout", "5000000",
+                                url
+                            ]
+                            result = subprocess.run(
+                                cmd, capture_output=True, text=True,
+                                timeout=timeout, encoding="utf-8", errors="replace"
+                            )
+                            if result.returncode == 0 and result.stdout.strip():
+                                parts = result.stdout.strip().split(",")
+                                if len(parts) >= 2:
+                                    width = int(parts[0])
+                                    height = int(parts[1])
+                                    return width * height, (width, height)
+                        except Exception as e:
+                            print(f"[!] Probe failed: {e}")
                         return 0, None
                     
                     # Find the stream with highest resolution
@@ -131,9 +138,10 @@ class TikTok:
                     best_resolution = 0
                     best_dims = None
                     
+                    print(f"[*] Probing streams to find highest resolution...")
                     for quality_key, url in flv_urls.items():
                         if url:
-                            resolution, dims = extract_resolution(url)
+                            resolution, dims = probe_stream_resolution(url)
                             dims_str = f"{dims[0]}x{dims[1]}" if dims else "unknown"
                             print(f"[*] Quality '{quality_key}': {resolution} pixels ({dims_str})")
                             if resolution > best_resolution:
@@ -143,7 +151,6 @@ class TikTok:
                                 best_dims = dims
                     
                     if best_url:
-                        # Use the dimensions we already found
                         res_str = f"{best_dims[0]}x{best_dims[1]}" if best_dims else "unknown"
                         print(f"[*] Selected highest resolution: {best_quality} ({res_str})")
                         return best_url
