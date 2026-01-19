@@ -145,12 +145,11 @@ class TikTok:
                 # status will be: "FINISHED", "RESTART", "ERROR", or "MANUAL_STOP"
                 status = record_stream(stream_url, temp_path, self.ffmpeg)
                 
-                # Rename the file to its final name (remove _flv suffix)
-                if os.path.exists(temp_path):
-                    try:
-                        os.rename(temp_path, output_path)
-                    except OSError as e:
-                        print(f"[!] Warning: Could not rename file: {e}")
+                # The conversion already renamed the file (from _flv.mp4 to .mp4)
+                # so the final path is without the _flv suffix
+                final_path = temp_path.replace("_flv.mp4", ".mp4")
+                if os.path.exists(final_path):
+                    print(f"[*] [TikTok] Recording saved: {final_path}")
 
                 if status == "RESTART":
                     # Resolution changed!

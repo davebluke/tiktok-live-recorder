@@ -5,6 +5,8 @@ import time
 import threading
 from datetime import datetime
 
+from utils.video_management import VideoManagement
+
 # Regex to catch resolution from FFprobe JSON output
 RESOLUTION_PATTERN = re.compile(r'"width"\s*:\s*(\d+).*?"height"\s*:\s*(\d+)', re.DOTALL)
 
@@ -147,6 +149,12 @@ def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
         monitor.stop()
         return "ERROR"
 
+    def convert_and_return(status):
+        """Helper to convert FLV to MP4 before returning status."""
+        if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
+            VideoManagement.convert_flv_to_mp4(output_file)
+        return status
+
     try:
         while True:
             # Check if FFmpeg has stopped
@@ -154,13 +162,13 @@ def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
             if exit_code is not None:
                 monitor.stop()
                 if exit_code == 0:
-                    return "FINISHED"
+                    return convert_and_return("FINISHED")
                 else:
                     # Read any error output
                     stderr_output = process.stderr.read() if process.stderr else ""
                     if stderr_output:
                         print(f"[!] FFmpeg stderr: {stderr_output[:500]}")
-                    return "FINISHED"  # Stream probably ended
+                    return convert_and_return("FINISHED")  # Stream probably ended
             
             # Check for resolution change
             if monitor.has_changed():
@@ -171,7 +179,7 @@ def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
                 except subprocess.TimeoutExpired:
                     process.kill()
                 monitor.stop()
-                return "RESTART"
+                return convert_and_return("RESTART")
             
             # Small sleep to prevent busy-waiting
             time.sleep(0.5)
@@ -185,7 +193,7 @@ def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
                 process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 process.kill()
-        return "MANUAL_STOP"
+        return convert_and_return("MANUAL_STOP")
                 
     except Exception as e:
         print(f"[!] Recorder Error: {e}")
