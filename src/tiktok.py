@@ -102,23 +102,41 @@ class TikTok:
                     flv_urls = stream_info["flv_pull_url"]
                     print(f"[*] Available qualities: {list(flv_urls.keys())}")
                     
-                    # Extended priority list including common high-res keys
-                    priority_qualities = [
-                        "private_source", "origin", "ORIGIN",
-                        "uhd", "UHD",
-                        "full_hd1", "FULL_HD1",
-                        "hd", "HD",
-                        "sd", "SD",
-                        "ld", "LD"
-                    ]
+                    # Parse resolution from URLs and select highest
+                    # Resolution is typically in format like "640x1280" in the URL
+                    def extract_resolution(url):
+                        """Extract resolution (width x height) from URL and return total pixels."""
+                        if not url:
+                            return 0
+                        match = re.search(r'(\d{3,4})x(\d{3,4})', url)
+                        if match:
+                            width = int(match.group(1))
+                            height = int(match.group(2))
+                            return width * height
+                        return 0
                     
-                    for quality in priority_qualities:
-                        if quality in flv_urls and flv_urls[quality]:
-                            print(f"[*] Using stream quality: {quality}")
-                            return flv_urls[quality]
-                            
-                    # If no priority quality found, try ANY match (case-insensitive for safety)
-                    # or just fallback to the first available
+                    # Find the stream with highest resolution
+                    best_quality = None
+                    best_url = None
+                    best_resolution = 0
+                    
+                    for quality_key, url in flv_urls.items():
+                        if url:
+                            resolution = extract_resolution(url)
+                            print(f"[*] Quality '{quality_key}': {resolution} pixels")
+                            if resolution > best_resolution:
+                                best_resolution = resolution
+                                best_quality = quality_key
+                                best_url = url
+                    
+                    if best_url:
+                        # Extract the actual dimensions for logging
+                        match = re.search(r'(\d{3,4})x(\d{3,4})', best_url)
+                        res_str = f"{match.group(1)}x{match.group(2)}" if match else "unknown"
+                        print(f"[*] Selected highest resolution: {best_quality} ({res_str})")
+                        return best_url
+                    
+                    # Fallback to first available if no resolution detected
                     if flv_urls:
                         first_key = list(flv_urls.keys())[0]
                         print(f"[*] Using fallback stream quality: {first_key}")
