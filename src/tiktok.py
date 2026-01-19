@@ -100,12 +100,25 @@ class TikTok:
                 # Priority: FLV Pull URL -> RTMP Pull URL
                 if "flv_pull_url" in stream_info:
                     flv_urls = stream_info["flv_pull_url"]
-                    # Try each quality level and report which one is used
-                    for quality in ["ORIGIN", "FULL_HD1", "HD1", "SD1", "SD2"]:
+                    print(f"[*] Available qualities: {list(flv_urls.keys())}")
+                    
+                    # Extended priority list including common high-res keys
+                    priority_qualities = [
+                        "private_source", "origin", "ORIGIN",
+                        "uhd", "UHD",
+                        "full_hd1", "FULL_HD1",
+                        "hd", "HD",
+                        "sd", "SD",
+                        "ld", "LD"
+                    ]
+                    
+                    for quality in priority_qualities:
                         if quality in flv_urls and flv_urls[quality]:
                             print(f"[*] Using stream quality: {quality}")
                             return flv_urls[quality]
-                    # If no known quality, try to get any available key
+                            
+                    # If no priority quality found, try ANY match (case-insensitive for safety)
+                    # or just fallback to the first available
                     if flv_urls:
                         first_key = list(flv_urls.keys())[0]
                         print(f"[*] Using fallback stream quality: {first_key}")

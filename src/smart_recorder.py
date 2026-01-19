@@ -1,9 +1,17 @@
 import subprocess
 import re
 import os
+import sys
 import time
 import threading
 from datetime import datetime
+
+# Windows keyboard detection
+try:
+    import msvcrt
+    HAS_MSVCRT = True
+except ImportError:
+    HAS_MSVCRT = False
 
 from utils.video_management import VideoManagement
 
@@ -71,6 +79,9 @@ class ResolutionMonitor:
         Main monitoring loop that runs in a thread.
         Polls the stream resolution and checks for changes.
         """
+        display_counter = 0
+        display_interval = 10  # Show resolution every 10 polls (~30 seconds)
+        
         while not self.stop_event.is_set():
             resolution = self.get_stream_resolution()
             
@@ -78,7 +89,7 @@ class ResolutionMonitor:
                 if self.current_resolution is None:
                     # First detection
                     self.current_resolution = resolution
-                    print(f"[*] Resolution: {resolution[0]}x{resolution[1]}")
+                    print(f"[*] Recording Resolution: {resolution[0]}x{resolution[1]}")
                 elif resolution != self.current_resolution:
                     # Resolution changed!
                     old_res = self.current_resolution
@@ -86,6 +97,12 @@ class ResolutionMonitor:
                     print(f"\n[!] Resolution Change: {old_res[0]}x{old_res[1]} -> {resolution[0]}x{resolution[1]}")
                     self.resolution_changed.set()
                     return  # Exit the monitor loop
+                else:
+                    # Periodically display current resolution
+                    display_counter += 1
+                    if display_counter >= display_interval:
+                        print(f"[*] Current Resolution: {resolution[0]}x{resolution[1]}")
+                        display_counter = 0
             
             # Wait for poll interval or until stopped
             self.stop_event.wait(timeout=self.poll_interval)
@@ -141,7 +158,7 @@ def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
     try:
         process = subprocess.Popen(
             cmd, 
-            stdin=subprocess.DEVNULL,  # Prevent FFmpeg from waiting for input
+            stdin=subprocess.PIPE,  # Allow sending commands like 'q'
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE,
             universal_newlines=True, 
@@ -196,13 +213,36 @@ def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
             # Check for resolution change
             if monitor.has_changed():
                 print("[!] Restarting session due to resolution change...")
-                process.terminate()
                 try:
+                    process.stdin.write("q")
+                    process.stdin.flush()
                     process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    process.kill()
+                except (IOError, ValueError, subprocess.TimeoutExpired):
+                    process.terminate()
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
                 monitor.stop()
                 return convert_and_return("RESTART")
+            
+            # Check for 'q' key press (Windows only)
+            if HAS_MSVCRT and msvcrt.kbhit():
+                key = msvcrt.getch()
+                if key in (b'q', b'Q'):
+                    print("\n[*] 'q' pressed - Gracefully stopping recording...")
+                    monitor.stop()
+                    try:
+                        process.stdin.write("q")
+                        process.stdin.flush()
+                        process.wait(timeout=5)
+                    except (IOError, ValueError, subprocess.TimeoutExpired):
+                        process.terminate()
+                        try:
+                            process.wait(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                    return convert_and_return("MANUAL_STOP")
             
             # Small sleep to prevent busy-waiting
             time.sleep(0.5)
@@ -211,11 +251,18 @@ def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
         print(f"\n[*] Gracefully stopping recording (CTRL+C received)...")
         monitor.stop()
         if process:
-            process.terminate()
             try:
+                # Send 'q' to quit gracefully and allow MP4 to finalize
+                process.stdin.write("q")
+                process.stdin.flush()
                 process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
+            except (IOError, ValueError, subprocess.TimeoutExpired):
+                # If 'q' fails or times out, force terminate
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
         return convert_and_return("MANUAL_STOP")
                 
     except Exception as e:
