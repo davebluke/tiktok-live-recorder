@@ -95,7 +95,8 @@ class TikTok:
                 
                 # Priority: FLV Pull URL -> RTMP Pull URL
                 if "flv_pull_url" in stream_info:
-                    return stream_info["flv_pull_url"].get("FULL_HD1") or \
+                    return stream_info["flv_pull_url"].get("ORIGIN") or \
+                           stream_info["flv_pull_url"].get("FULL_HD1") or \
                            stream_info["flv_pull_url"].get("HD1") or \
                            stream_info["flv_pull_url"].get("SD1")
                 
