@@ -88,20 +88,39 @@ class TikTok:
                 # Check live status (2 = Live, 4 = Finish/Offline)
                 status = data.get("status")
                 if status != 2:
+                    print(f"[!] Stream status is {status}, not live (2)")
                     return None
 
-                if "stream_url" in data:
-                    stream_info = data["stream_url"]
+                if "stream_url" not in data:
+                    print("[!] No stream_url in API response")
+                    return None
+                    
+                stream_info = data["stream_url"]
                 
                 # Priority: FLV Pull URL -> RTMP Pull URL
                 if "flv_pull_url" in stream_info:
-                    return stream_info["flv_pull_url"].get("ORIGIN") or \
-                           stream_info["flv_pull_url"].get("FULL_HD1") or \
-                           stream_info["flv_pull_url"].get("HD1") or \
-                           stream_info["flv_pull_url"].get("SD1")
+                    flv_urls = stream_info["flv_pull_url"]
+                    # Try each quality level and report which one is used
+                    for quality in ["ORIGIN", "FULL_HD1", "HD1", "SD1", "SD2"]:
+                        if quality in flv_urls and flv_urls[quality]:
+                            print(f"[*] Using stream quality: {quality}")
+                            return flv_urls[quality]
+                    # If no known quality, try to get any available key
+                    if flv_urls:
+                        first_key = list(flv_urls.keys())[0]
+                        print(f"[*] Using fallback stream quality: {first_key}")
+                        return flv_urls[first_key]
                 
                 if "rtmp_pull_url" in stream_info:
+                    print("[*] Using RTMP pull URL")
                     return stream_info["rtmp_pull_url"]
+                    
+                # Check for HLS as fallback
+                if "hls_pull_url" in stream_info:
+                    print("[*] Using HLS pull URL")
+                    return stream_info["hls_pull_url"]
+                    
+                print(f"[!] No usable stream URL found. Available keys: {list(stream_info.keys())}")
                     
         except Exception as e:
             logging.error(f"Error retrieving Stream URL: {e}")

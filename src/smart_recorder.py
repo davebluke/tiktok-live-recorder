@@ -128,16 +128,20 @@ def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
     
     # Simple FFmpeg command - just record, no dual-output needed
     cmd = [
-        ffmpeg_path, "-y", "-loglevel", "warning",
+        ffmpeg_path, "-y", "-loglevel", "info",
+        "-rw_timeout", "10000000",  # 10 second read/write timeout
         "-i", stream_url,
         "-c", "copy",
         output_file
     ]
+    
+    print(f"[*] [SmartRecorder] Stream URL: {stream_url[:100]}...")  # Debug: show stream URL
 
     process = None
     try:
         process = subprocess.Popen(
             cmd, 
+            stdin=subprocess.DEVNULL,  # Prevent FFmpeg from waiting for input
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE,
             universal_newlines=True, 
@@ -153,7 +157,26 @@ def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
         """Helper to convert FLV to MP4 before returning status."""
         if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
             VideoManagement.convert_flv_to_mp4(output_file)
+        else:
+            print(f"[!] Output file empty or missing: {output_file}")
         return status
+
+    # Thread to read FFmpeg stderr continuously
+    stderr_output = []
+    def read_stderr():
+        try:
+            for line in process.stderr:
+                line = line.strip()
+                if line:
+                    stderr_output.append(line)
+                    # Print progress info (lines with time= or speed=)
+                    if "time=" in line or "error" in line.lower():
+                        print(f"[FFmpeg] {line[:150]}")
+        except:
+            pass
+    
+    stderr_thread = threading.Thread(target=read_stderr, daemon=True)
+    stderr_thread.start()
 
     try:
         while True:
