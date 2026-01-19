@@ -104,35 +104,47 @@ class TikTok:
                     
                     # Parse resolution from URLs and select highest
                     # Resolution is typically in format like "640x1280" in the URL
+                    # NOTE: Some URLs may contain multiple resolution patterns, so we find ALL
+                    # and return the highest resolution found
                     def extract_resolution(url):
-                        """Extract resolution (width x height) from URL and return total pixels."""
+                        """Extract resolution (width x height) from URL and return total pixels and dimensions."""
                         if not url:
-                            return 0
-                        match = re.search(r'(\d{3,4})x(\d{3,4})', url)
-                        if match:
-                            width = int(match.group(1))
-                            height = int(match.group(2))
-                            return width * height
-                        return 0
+                            return 0, None
+                        # Find ALL resolution patterns in the URL (3-5 digits for future proofing)
+                        matches = re.findall(r'(\d{3,5})x(\d{3,5})', url)
+                        if matches:
+                            best_pixels = 0
+                            best_dims = None
+                            for w, h in matches:
+                                width = int(w)
+                                height = int(h)
+                                pixels = width * height
+                                if pixels > best_pixels:
+                                    best_pixels = pixels
+                                    best_dims = (width, height)
+                            return best_pixels, best_dims
+                        return 0, None
                     
                     # Find the stream with highest resolution
                     best_quality = None
                     best_url = None
                     best_resolution = 0
+                    best_dims = None
                     
                     for quality_key, url in flv_urls.items():
                         if url:
-                            resolution = extract_resolution(url)
-                            print(f"[*] Quality '{quality_key}': {resolution} pixels")
+                            resolution, dims = extract_resolution(url)
+                            dims_str = f"{dims[0]}x{dims[1]}" if dims else "unknown"
+                            print(f"[*] Quality '{quality_key}': {resolution} pixels ({dims_str})")
                             if resolution > best_resolution:
                                 best_resolution = resolution
                                 best_quality = quality_key
                                 best_url = url
+                                best_dims = dims
                     
                     if best_url:
-                        # Extract the actual dimensions for logging
-                        match = re.search(r'(\d{3,4})x(\d{3,4})', best_url)
-                        res_str = f"{match.group(1)}x{match.group(2)}" if match else "unknown"
+                        # Use the dimensions we already found
+                        res_str = f"{best_dims[0]}x{best_dims[1]}" if best_dims else "unknown"
                         print(f"[*] Selected highest resolution: {best_quality} ({res_str})")
                         return best_url
                     
