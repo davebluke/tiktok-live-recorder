@@ -91,7 +91,8 @@ class TikTok:
                 # Check live status (2 = Live, 4 = Finish/Offline)
                 status = data.get("status")
                 if status != 2:
-                    print(f"[!] Stream status is {status}, not live (2)")
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    print(f"[!] {timestamp} - Stream status is {status}, not live (2)")
                     return None
 
                 if "stream_url" not in data:
@@ -307,9 +308,11 @@ class TikTok:
                                 time.sleep(30)
                                 continue
                     else:
-                        print(f"[*] {RED}{self.user} is offline.{RESET} Checking again...", end="\r")
+                        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        print(f"[*] {timestamp} - {RED}{self.user} is offline.{RESET} Checking again...", end="\r")
                 else:
-                    print(f"[*] {RED}{self.user} is offline.{RESET} Checking again...", end="\r")
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    print(f"[*] {timestamp} - {RED}{self.user} is offline.{RESET} Checking again...", end="\r")
 
                 if self.mode == "manual":
                     break
