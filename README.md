@@ -108,7 +108,7 @@ The example below saves recordings into a local `./output` folder (created if it
 ```bash
 $ sudo docker run \
   -v ./output:/output \
-  michele0303/tiktok-live-recorder:latest \
+  davebluke/tiktok-live-recorder:latest \
   -output /output \
   -user <username>
 ```
