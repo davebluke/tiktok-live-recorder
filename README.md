@@ -37,7 +37,7 @@ To clone and run this application, you'll need [Git](https://git-scm.com) and [P
 
   ```bash
 # Clone this repository
-$ git clone https://github.com/Michele0303/tiktok-live-recorder
+$ git clone [https://github.com/Michele0303/tiktok-live-recorder](https://github.com/davebluke/tiktok-live-recorder)
 # Go into the repository
 $ cd tiktok-live-recorder
 # Go into the source code
@@ -60,7 +60,7 @@ To clone and run this application, you'll need [Git](https://git-scm.com) and [P
 
   ```bash
 # Clone this repository
-$ git clone https://github.com/Michele0303/tiktok-live-recorder
+$ git clone [https://github.com/Michele0303/tiktok-live-recorder](https://github.com/davebluke/tiktok-live-recorder)
 # Go into the repository
 $ cd tiktok-live-recorder
 # Go into the source code
@@ -88,7 +88,7 @@ $ pkg upgrade
 # Install git, python3, ffmpeg
 $ pkg install git python3 ffmpeg
 # Clone this repository
-$ git clone https://github.com/Michele0303/tiktok-live-recorder
+$ git clone [https://github.com/Michele0303/tiktok-live-recorder](https://github.com/davebluke/tiktok-live-recorder)
 # Go into the repository
 $ cd tiktok-live-recorder
 # Go into the source code
