@@ -198,7 +198,7 @@ class TikTok:
         Monitors for resolution changes (e.g. PK Battles) and restarts automatically.
         """
         current_date = datetime.now().strftime("%Y.%m.%d_%H-%M-%S")
-        filename = f"{self.user}_{current_date}.mp4"
+        filename = f"v02__{self.user}_{current_date}.mp4"
         output_path = os.path.join(self.output, filename)
 
         print(f"\n[*] [TikTok] Recording started for {self.user}")
@@ -234,7 +234,7 @@ class TikTok:
                     # Create a new filename for the next part
                     # Format: user_Date_Time_Part2.mp4
                     timestamp = datetime.now().strftime("%H-%M-%S")
-                    base_name = f"{self.user}_{current_date}_{timestamp}.mp4"
+                    base_name = f"v02__{self.user}_{current_date}_{timestamp}.mp4"
                     filename = base_name # Update filename for next loop
                     output_path = os.path.join(self.output, base_name)
                     
