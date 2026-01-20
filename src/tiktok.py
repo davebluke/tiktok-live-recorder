@@ -284,12 +284,28 @@ class TikTok:
                         print(f"[*] {GREEN}{self.user} is LIVE!{RESET} (Room ID: {room_id})")
                         status = self.start_recording(stream_url)
                         
-                        # If user stopped it manually, we might want to continue checking
-                        # or just wait a short moment instead of full interval
+                        # Handle different end statuses
                         if status == "MANUAL_STOP":
                              print(f"[*] Manual stop detected. Resuming monitoring in 3 seconds...")
                              time.sleep(3)
                              continue
+                        
+                        elif status == "FINISHED":
+                            # Stream ended naturally - check again soon
+                            if self.mode == "automatic":
+                                print(f"\n[*] {self.user} went offline. Waiting 30 seconds before checking again...")
+                                time.sleep(30)
+                                continue
+                            else:
+                                print(f"[*] Stream ended. Mode is manual, exiting.")
+                                break
+                        
+                        elif status == "ERROR":
+                            # Error occurred - wait a bit and retry
+                            if self.mode == "automatic":
+                                print(f"\n[!] Error occurred. Retrying in 30 seconds...")
+                                time.sleep(30)
+                                continue
                     else:
                         print(f"[*] {RED}{self.user} is offline.{RESET} Checking again...", end="\r")
                 else:
