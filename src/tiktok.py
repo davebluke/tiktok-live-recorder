@@ -76,7 +76,10 @@ class TikTok:
     def get_stream_url(self, room_id):
         """
         Fetches the FLV stream URL using the Room ID.
+        Uses live_core_sdk_data for highest quality stream selection (like original repo).
         """
+        import json as json_module
+        
         try:
             url = f"https://webcast.tiktok.com/webcast/room/info/?aid=1988&room_id={room_id}"
             response = requests.get(url, headers=self.headers).json()
@@ -97,68 +100,71 @@ class TikTok:
                     
                 stream_info = data["stream_url"]
                 
-                # Priority: FLV Pull URL -> RTMP Pull URL
+                # --- PRIORITY 1: Use live_core_sdk_data for highest quality (like original repo) ---
+                try:
+                    sdk_data_str = (
+                        stream_info.get("live_core_sdk_data", {})
+                        .get("pull_data", {})
+                        .get("stream_data")
+                    )
+                    
+                    if sdk_data_str:
+                        sdk_data = json_module.loads(sdk_data_str).get("data", {})
+                        
+                        # Get quality levels
+                        qualities = (
+                            stream_info.get("live_core_sdk_data", {})
+                            .get("pull_data", {})
+                            .get("options", {})
+                            .get("qualities", [])
+                        )
+                        
+                        if qualities:
+                            level_map = {q["sdk_key"]: q["level"] for q in qualities}
+                            print(f"[*] SDK Qualities available: {list(level_map.keys())}")
+                            
+                            best_level = -1
+                            best_flv = None
+                            best_quality_name = None
+                            
+                            for sdk_key, entry in sdk_data.items():
+                                level = level_map.get(sdk_key, -1)
+                                stream_main = entry.get("main", {})
+                                flv_url = stream_main.get("flv")
+                                
+                                if level > best_level and flv_url:
+                                    best_level = level
+                                    best_flv = flv_url
+                                    best_quality_name = sdk_key
+                            
+                            if best_flv:
+                                print(f"[*] Using SDK stream: {best_quality_name} (level {best_level})")
+                                return best_flv
+                            else:
+                                print("[!] SDK stream data found but no FLV URL extracted")
+                        else:
+                            print("[!] No qualities found in SDK stream data")
+                    else:
+                        print("[*] No SDK stream data, falling back to legacy URLs...")
+                        
+                except Exception as sdk_error:
+                    print(f"[!] SDK extraction failed: {sdk_error}, falling back to legacy URLs...")
+                
+                # --- PRIORITY 2: Fallback to legacy flv_pull_url (with quality preference) ---
                 if "flv_pull_url" in stream_info:
                     flv_urls = stream_info["flv_pull_url"]
-                    print(f"[*] Available qualities: {list(flv_urls.keys())}")
+                    print(f"[*] Legacy qualities available: {list(flv_urls.keys())}")
                     
-                    # Use ffprobe to detect actual resolution of each stream
-                    import subprocess
+                    # Try quality levels in order of preference
+                    for quality in ["FULL_HD1", "HD1", "ORIGIN", "SD2", "SD1"]:
+                        if quality in flv_urls and flv_urls[quality]:
+                            print(f"[*] Using legacy stream quality: {quality}")
+                            return flv_urls[quality]
                     
-                    def probe_stream_resolution(url, timeout=8):
-                        """Use ffprobe to detect actual stream resolution."""
-                        if not url:
-                            return 0, None
-                        try:
-                            cmd = [
-                                "ffprobe", "-v", "error",
-                                "-select_streams", "v:0",
-                                "-show_entries", "stream=width,height",
-                                "-of", "csv=p=0",
-                                "-timeout", "5000000",
-                                url
-                            ]
-                            result = subprocess.run(
-                                cmd, capture_output=True, text=True,
-                                timeout=timeout, encoding="utf-8", errors="replace"
-                            )
-                            if result.returncode == 0 and result.stdout.strip():
-                                parts = result.stdout.strip().split(",")
-                                if len(parts) >= 2:
-                                    width = int(parts[0])
-                                    height = int(parts[1])
-                                    return width * height, (width, height)
-                        except Exception as e:
-                            print(f"[!] Probe failed: {e}")
-                        return 0, None
-                    
-                    # Find the stream with highest resolution
-                    best_quality = None
-                    best_url = None
-                    best_resolution = 0
-                    best_dims = None
-                    
-                    print(f"[*] Probing streams to find highest resolution...")
-                    for quality_key, url in flv_urls.items():
-                        if url:
-                            resolution, dims = probe_stream_resolution(url)
-                            dims_str = f"{dims[0]}x{dims[1]}" if dims else "unknown"
-                            print(f"[*] Quality '{quality_key}': {resolution} pixels ({dims_str})")
-                            if resolution > best_resolution:
-                                best_resolution = resolution
-                                best_quality = quality_key
-                                best_url = url
-                                best_dims = dims
-                    
-                    if best_url:
-                        res_str = f"{best_dims[0]}x{best_dims[1]}" if best_dims else "unknown"
-                        print(f"[*] Selected highest resolution: {best_quality} ({res_str})")
-                        return best_url
-                    
-                    # Fallback to first available if no resolution detected
+                    # If no known quality, try the first available
                     if flv_urls:
                         first_key = list(flv_urls.keys())[0]
-                        print(f"[*] Using fallback stream quality: {first_key}")
+                        print(f"[*] Using fallback legacy stream: {first_key}")
                         return flv_urls[first_key]
                 
                 if "rtmp_pull_url" in stream_info:
