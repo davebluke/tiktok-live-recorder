@@ -178,6 +178,34 @@ def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
             print(f"[!] Output file empty or missing: {output_file}")
         return status
 
+    # ANSI codes for formatting
+    BOLD = "\033[1m"
+    RESET = "\033[0m"
+    
+    def format_ffmpeg_line(line):
+        """Format FFmpeg progress line with MB size and alternating bold."""
+        # Convert size from kB to MB
+        size_match = re.search(r'size=\s*(\d+)kB', line)
+        if size_match:
+            kb_value = int(size_match.group(1))
+            mb_value = kb_value / 1024
+            line = re.sub(r'size=\s*\d+kB', f'size={mb_value:.2f}MB', line)
+        
+        # Parse the line into key=value pairs
+        # Pattern: frame=  123 fps= 21 q=-1.0 size=4.25MB time=00:00:28.12 bitrate=1267.9kbits/s speed=1.42x
+        parts = re.findall(r'(\w+)=\s*([^\s]+)', line)
+        
+        if parts:
+            formatted_parts = []
+            for i, (key, value) in enumerate(parts):
+                if i % 2 == 0:  # Bold: frame, q, time, speed
+                    formatted_parts.append(f"{BOLD}{key}={value}{RESET}")
+                else:  # Regular: fps, size, bitrate
+                    formatted_parts.append(f"{key}={value}")
+            return "[FFmpeg] " + "  ".join(formatted_parts)
+        
+        return f"[FFmpeg] {line}"
+    
     # Thread to read FFmpeg stderr continuously
     stderr_output = []
     def read_stderr():
@@ -187,7 +215,9 @@ def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
                 if line:
                     stderr_output.append(line)
                     # Print progress info (lines with time= or speed=)
-                    if "time=" in line or "error" in line.lower():
+                    if "time=" in line:
+                        print(format_ffmpeg_line(line))
+                    elif "error" in line.lower():
                         print(f"[FFmpeg] {line[:150]}")
         except:
             pass
