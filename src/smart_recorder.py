@@ -184,12 +184,12 @@ def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
     
     def format_ffmpeg_line(line):
         """Format FFmpeg progress line with MB size and alternating bold."""
-        # Convert size from kB to MB
-        size_match = re.search(r'size=\s*(\d+)kB', line)
+        # Convert size from KiB to MiB
+        size_match = re.search(r'size=\s*(\d+)KiB', line)
         if size_match:
-            kb_value = int(size_match.group(1))
-            mb_value = kb_value / 1024
-            line = re.sub(r'size=\s*\d+kB', f'size={mb_value:.2f}MB', line)
+            kib_value = int(size_match.group(1))
+            mib_value = kib_value / 1024
+            line = re.sub(r'size=\s*\d+KiB', f'size={mib_value:.2f}MB', line)
         
         # Parse the line into key=value pairs
         # Pattern: frame=  123 fps= 21 q=-1.0 size=4.25MB time=00:00:28.12 bitrate=1267.9kbits/s speed=1.42x
