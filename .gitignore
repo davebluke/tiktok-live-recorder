@@ -142,3 +142,6 @@ dmypy.json
 .DS_Store
 
 .idea/
+
+# Status files for multi-instance monitor
+.tiktok_status/
