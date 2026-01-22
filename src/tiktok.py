@@ -16,6 +16,22 @@ except ImportError:
     # Fallback if running from root without package context
     from smart_recorder import record_stream
 
+# --- STATUS MANAGER FOR MULTI-INSTANCE MONITORING ---
+try:
+    from src.utils.status_manager import StatusManager
+except ImportError:
+    try:
+        from utils.status_manager import StatusManager
+    except ImportError:
+        # Fallback: create a dummy StatusManager if not available
+        class StatusManager:
+            def __init__(self, *args, **kwargs): pass
+            def set_waiting(self): pass
+            def set_recording(self, filename): pass
+            def update_recording_progress(self, size): pass
+            def heartbeat(self): pass
+            def set_stopped(self): pass
+
 # -------------------------------------------
 
 # ANSI Colors
@@ -31,6 +47,9 @@ class TikTok:
         self.ffmpeg = ffmpeg
         self.interval = interval
         self.update_check = update_check
+        
+        # Initialize status manager for multi-instance monitoring
+        self.status_manager = StatusManager(user)
         
         # Headers mimicking a real browser to avoid detection
         self.headers = {
@@ -283,6 +302,9 @@ class TikTok:
                     
                     if stream_url:
                         print(f"[*] {GREEN}{self.user} is LIVE!{RESET} (Room ID: {room_id})")
+                        # Update status to RECORDING before starting
+                        current_date = datetime.now().strftime("%Y.%m.%d_%H-%M-%S")
+                        self.status_manager.set_recording(f"v02__{self.user}_{current_date}.mp4")
                         status = self.start_recording(stream_url)
                         
                         # Handle different end statuses
@@ -310,9 +332,11 @@ class TikTok:
                     else:
                         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         print(f"[*] {timestamp} - {RED}{self.user} is offline.{RESET} Checking again...", end="\r")
+                        self.status_manager.set_waiting()
                 else:
                     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     print(f"[*] {timestamp} - {RED}{self.user} is offline.{RESET} Checking again...", end="\r")
+                    self.status_manager.set_waiting()
 
                 if self.mode == "manual":
                     break
@@ -327,6 +351,7 @@ class TikTok:
 
             except KeyboardInterrupt:
                 print("\n[*] Stopped by user.")
+                self.status_manager.set_stopped()
                 break
             except Exception as e:
                 print(f"\n[!] Unexpected Error: {e}")
