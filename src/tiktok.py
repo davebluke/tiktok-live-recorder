@@ -239,7 +239,7 @@ class TikTok:
                 
                 # Pass execution to the smart recorder module
                 # status will be: "FINISHED", "RESTART", "ERROR", or "MANUAL_STOP"
-                status = record_stream(stream_url, temp_path, self.ffmpeg)
+                status = record_stream(stream_url, temp_path, self.ffmpeg, self.status_manager)
                 
                 # The conversion already renamed the file (from _flv.mp4 to .mp4)
                 # so the final path is without the _flv suffix
@@ -342,11 +342,18 @@ class TikTok:
                     break
                 
                 # Wait before checking again (Automatic mode)
+                # Use a loop with heartbeats instead of one long sleep
+                # to keep the status file fresh for the monitor
+                wait_seconds = int(self.interval * 60)
+                heartbeat_interval = 30  # Update status every 30 seconds
                 try:
-                    time.sleep(self.interval * 60)
+                    for _ in range(0, wait_seconds, heartbeat_interval):
+                        time.sleep(min(heartbeat_interval, wait_seconds))
+                        self.status_manager.heartbeat()
                 except KeyboardInterrupt:
                     # If CTRL+C during sleep
                     print("\n[*] Stopped by user during wait.")
+                    self.status_manager.set_stopped()
                     break
 
             except KeyboardInterrupt:

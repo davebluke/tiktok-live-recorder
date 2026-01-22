@@ -123,10 +123,16 @@ class ResolutionMonitor:
         return self.resolution_changed.is_set()
 
 
-def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
+def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg", status_manager=None):
     """
     Records the stream and restarts if resolution changes.
     Returns: 'FINISHED', 'RESTART', 'ERROR', or 'MANUAL_STOP'
+    
+    Args:
+        stream_url: URL of the stream to record
+        output_file: Path to save the recording
+        ffmpeg_path: Path to ffmpeg executable
+        status_manager: Optional StatusManager for heartbeat updates
     """
     print(f"[*] [SmartRecorder] Starting: {os.path.basename(output_file)}")
     
@@ -273,6 +279,17 @@ def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg"):
                         except subprocess.TimeoutExpired:
                             process.kill()
                     return convert_and_return("MANUAL_STOP")
+            
+            # Update status manager heartbeat and file size
+            if status_manager:
+                try:
+                    if os.path.exists(output_file):
+                        file_size_mb = os.path.getsize(output_file) / (1024 * 1024)
+                        status_manager.update_recording_progress(file_size_mb)
+                    else:
+                        status_manager.heartbeat()
+                except Exception:
+                    pass  # Non-critical, don't crash recording
             
             # Small sleep to prevent busy-waiting
             time.sleep(0.5)
