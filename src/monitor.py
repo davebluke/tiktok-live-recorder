@@ -18,6 +18,7 @@ The dashboard displays:
 import os
 import sys
 import time
+import shutil
 import argparse
 from datetime import datetime, timedelta
 
@@ -78,6 +79,61 @@ def format_duration(seconds: float) -> str:
         hours = int(seconds // 3600)
         minutes = int((seconds % 3600) // 60)
         return f"{hours}h {minutes}m"
+
+
+def get_disk_free_space(path: str) -> tuple:
+    """
+    Get free disk space for a given path.
+    Returns (free_gb, total_gb, percent_free)
+    """
+    try:
+        if not path or path == "-":
+            return None, None, None
+        
+        # Extract drive/root from path
+        if os.name == 'nt':  # Windows
+            # Handle paths like M:\folder\file.mp4 or M:/folder
+            if len(path) >= 2 and path[1] == ':':
+                drive = path[:3]  # e.g., "M:\\"
+            else:
+                drive = os.path.splitdrive(path)[0]
+                if drive:
+                    drive += os.sep
+                else:
+                    return None, None, None
+        else:  # Unix
+            drive = "/"
+        
+        if os.path.exists(drive):
+            usage = shutil.disk_usage(drive)
+            free_gb = usage.free / (1024 ** 3)
+            total_gb = usage.total / (1024 ** 3)
+            percent_free = (usage.free / usage.total) * 100
+            return free_gb, total_gb, percent_free
+    except Exception:
+        pass
+    return None, None, None
+
+
+def get_recording_drives(statuses: list) -> dict:
+    """
+    Extract unique drives from recording paths.
+    Returns dict of {drive: (free_gb, total_gb, percent_free)}
+    """
+    drives = {}
+    for status in statuses:
+        current_file = status.get("current_file", "")
+        if current_file and current_file != "-":
+            if os.name == 'nt' and len(current_file) >= 2 and current_file[1] == ':':
+                drive = current_file[:2].upper()  # e.g., "M:"
+            else:
+                drive = "/"
+            
+            if drive not in drives:
+                free_gb, total_gb, percent_free = get_disk_free_space(current_file)
+                if free_gb is not None:
+                    drives[drive] = (free_gb, total_gb, percent_free)
+    return drives
 
 
 def get_state_display(state: str, is_stale: bool) -> tuple:
@@ -204,6 +260,17 @@ def print_plain_table(statuses: list) -> None:
         
         print(f"{username:<15} {state_display:<12} {heartbeat:<12} {pid:<8} {current_file or '-':<25} {size_text:<8}")
     
+    # Show disk space info
+    drives = get_recording_drives(statuses)
+    if drives:
+        print()
+        print("   Disk Space:")
+        for drive, (free_gb, total_gb, percent_free) in drives.items():
+            bar_len = 20
+            filled = int((100 - percent_free) / 100 * bar_len)
+            bar = "#" * filled + "-" * (bar_len - filled)
+            print(f"   {drive} [{bar}] {free_gb:.1f} GB free / {total_gb:.1f} GB ({percent_free:.0f}% free)")
+    
     print()
     print(f"   Last refresh: {datetime.now().strftime('%H:%M:%S')}")
     print("   Press Ctrl+C to exit")
@@ -217,10 +284,19 @@ def run_rich_dashboard(status_dir: str, refresh_interval: float) -> None:
         statuses = get_all_statuses(status_dir)
         table = create_rich_table(statuses)
         
+        # Get disk space info
+        drives = get_recording_drives(statuses)
+        disk_info = ""
+        for drive, (free_gb, total_gb, percent_free) in drives.items():
+            color = "green" if percent_free > 20 else ("yellow" if percent_free > 10 else "red")
+            disk_info += f" | [{color}]{drive} {free_gb:.1f} GB free ({percent_free:.0f}%)[/{color}]"
+        
         footer = Text()
         footer.append(f"\nLast refresh: {datetime.now().strftime('%H:%M:%S')} ", style="dim")
         footer.append("| Press Ctrl+C to exit", style="dim")
         footer.append(f" | Status dir: {status_dir}", style="dim blue")
+        if disk_info:
+            footer.append(disk_info)
         
         return Panel.fit(
             table,

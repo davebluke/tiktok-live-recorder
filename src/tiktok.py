@@ -40,6 +40,10 @@ RED = "\033[91m"
 RESET = "\033[0m"
 
 class TikTok:
+    # TikRec API for signed requests (like original repo)
+    TIKREC_API = "https://tikrec.com"
+    BASE_URL = "https://www.tiktok.com"
+    
     def __init__(self, output, mode, user, ffmpeg="ffmpeg", interval=5, update_check=True):
         self.output = output
         self.mode = mode
@@ -53,22 +57,70 @@ class TikTok:
         
         # Headers mimicking a real browser to avoid detection
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Referer": "https://www.tiktok.com/",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "en-US,en;q=0.9",
         }
         
         # Ensure output directory exists
         if not os.path.exists(self.output):
             os.makedirs(self.output)
 
-    def get_room_id(self):
+    def _get_tikrec_signed_url(self):
         """
-        Retrieves the Room ID for the given user. 
-        Returns None if user is not found or not live.
+        Gets a signed URL from TikRec API for reliable room_id retrieval.
+        This approach is used by the original Michele0303 repo.
         """
         try:
+            response = requests.get(
+                f"{self.TIKREC_API}/tiktok/room/api/sign",
+                params={"unique_id": self.user},
+                headers=self.headers,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                signed_path = data.get("signed_path")
+                if signed_path:
+                    return f"{self.BASE_URL}{signed_path}"
+        except Exception as e:
+            logging.error(f"TikRec API error: {e}")
+        
+        return None
+
+    def get_room_id(self):
+        """
+        Retrieves the Room ID for the given user using TikRec signed URL.
+        Falls back to direct HTML scraping if TikRec fails.
+        Returns None if user is not found or not live.
+        """
+        # --- PRIMARY: Use TikRec API (like original repo) ---
+        try:
+            signed_url = self._get_tikrec_signed_url()
+            
+            if signed_url:
+                response = requests.get(signed_url, headers=self.headers, timeout=10)
+                content = response.text
+                
+                if content and "Please wait" not in content:
+                    try:
+                        data = response.json()
+                        room_id = (data.get("data") or {}).get("user", {}).get("roomId")
+                        if room_id:
+                            print(f"[*] Room ID retrieved via TikRec API: {room_id}")
+                            return room_id
+                    except Exception as json_err:
+                        logging.debug(f"TikRec JSON parse error: {json_err}")
+        except Exception as e:
+            logging.error(f"TikRec signed URL error: {e}")
+        
+        # --- FALLBACK: Direct HTML scraping ---
+        try:
+            print("[*] TikRec API unavailable, falling back to HTML scraping...")
             url = f"https://www.tiktok.com/@{self.user}/live"
-            response = requests.get(url, headers=self.headers, allow_redirects=False)
+            response = requests.get(url, headers=self.headers, allow_redirects=False, timeout=10)
             
             # If we get a redirect, the room might be offline or user doesn't exist
             if response.status_code == 302:
@@ -80,6 +132,7 @@ class TikTok:
             if "roomId" in content:
                 room_id = re.search(r'"roomId":"(\d+)"', content)
                 if room_id:
+                    print(f"[*] Room ID retrieved via HTML scraping: {room_id.group(1)}")
                     return room_id.group(1)
             
             # Alternative regex pattern common in TikTok source
