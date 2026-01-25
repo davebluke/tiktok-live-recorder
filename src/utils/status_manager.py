@@ -36,15 +36,17 @@ class StatusManager:
     STATE_RECORDING = "RECORDING"
     STATE_STOPPED = "STOPPED"
     
-    def __init__(self, username: str, status_dir: str = DEFAULT_STATUS_DIR):
+    def __init__(self, username: str, output_path: str = None, status_dir: str = DEFAULT_STATUS_DIR):
         """
         Initialize the StatusManager for a specific user.
         
         Args:
             username: TikTok username being monitored/recorded
+            output_path: Path where recordings are saved
             status_dir: Directory to store status files
         """
         self.username = username
+        self.output_path = output_path
         self.status_dir = status_dir
         self.status_file = os.path.join(status_dir, f"{username}.json")
         self.pid = os.getpid()
@@ -73,7 +75,8 @@ class StatusManager:
                 "started_at": self.started_at,
                 "last_heartbeat": datetime.now().isoformat(),
                 "current_file": self.current_file,
-                "file_size_mb": round(self.file_size_mb, 2)
+                "file_size_mb": round(self.file_size_mb, 2),
+                "output_path": self.output_path
             }
             
             try:

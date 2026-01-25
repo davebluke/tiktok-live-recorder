@@ -53,7 +53,7 @@ class TikTok:
         self.update_check = update_check
         
         # Initialize status manager for multi-instance monitoring
-        self.status_manager = StatusManager(user)
+        self.status_manager = StatusManager(user, output_path=self.output)
         
         # Headers mimicking a real browser to avoid detection
         self.headers = {
