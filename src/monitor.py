@@ -115,17 +115,34 @@ def get_disk_free_space(path: str) -> tuple:
     return None, None, None
 
 
-def get_recording_drives(statuses: list) -> dict:
+def get_recording_drives(statuses: list, check_path: str = None) -> dict:
     """
     Extract unique drives from recording paths.
     Returns dict of {drive: (free_gb, total_gb, percent_free)}
     """
     drives = {}
+    
+    # Always check the default/monitored path first
+    if check_path:
+        check_path = os.path.abspath(check_path)
+        if os.name == 'nt':
+            drive = os.path.splitdrive(check_path)[0]
+            if drive:
+                drive += os.sep
+            else:
+                drive = check_path
+        else:
+            drive = "/" # simplified for unix
+            
+        free_gb, total_gb, percent_free = get_disk_free_space(check_path)
+        if free_gb is not None:
+             drives[drive] = (free_gb, total_gb, percent_free)
+
     for status in statuses:
         current_file = status.get("current_file", "")
         if current_file and current_file != "-":
             if os.name == 'nt' and len(current_file) >= 2 and current_file[1] == ':':
-                drive = current_file[:2].upper()  # e.g., "M:"
+                drive = current_file[:2].upper() + os.sep
             else:
                 drive = "/"
             
@@ -211,7 +228,7 @@ def create_rich_table(statuses: list) -> Table:
     return table
 
 
-def print_plain_table(statuses: list) -> None:
+def print_plain_table(statuses: list, check_path: str = None) -> None:
     """Print a plain text table (fallback without rich)."""
     # Clear screen
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -224,9 +241,6 @@ def print_plain_table(statuses: list) -> None:
     if not statuses:
         print("   No instances running.")
         print()
-        print("   Waiting for recorder instances to start...")
-        print("   (run 'python main.py -user <username>' to start recording)")
-        return
     
     # Header
     print(f"{'Username':<15} {'Status':<12} {'Heartbeat':<12} {'PID':<8} {'File':<25} {'Size MB':<8}")
@@ -261,7 +275,7 @@ def print_plain_table(statuses: list) -> None:
         print(f"{username:<15} {state_display:<12} {heartbeat:<12} {pid:<8} {current_file or '-':<25} {size_text:<8}")
     
     # Show disk space info
-    drives = get_recording_drives(statuses)
+    drives = get_recording_drives(statuses, check_path)
     if drives:
         print()
         print("   Disk Space:")
@@ -276,7 +290,7 @@ def print_plain_table(statuses: list) -> None:
     print("   Press Ctrl+C to exit")
 
 
-def run_rich_dashboard(status_dir: str, refresh_interval: float) -> None:
+def run_rich_dashboard(status_dir: str, refresh_interval: float, check_path: str = None) -> None:
     """Run the dashboard using rich library."""
     console = Console()
     
@@ -285,7 +299,7 @@ def run_rich_dashboard(status_dir: str, refresh_interval: float) -> None:
         table = create_rich_table(statuses)
         
         # Get disk space info
-        drives = get_recording_drives(statuses)
+        drives = get_recording_drives(statuses, check_path)
         disk_info = ""
         for drive, (free_gb, total_gb, percent_free) in drives.items():
             color = "green" if percent_free > 20 else ("yellow" if percent_free > 10 else "red")
@@ -313,12 +327,12 @@ def run_rich_dashboard(status_dir: str, refresh_interval: float) -> None:
         console.print("\n[yellow]Monitor stopped.[/yellow]")
 
 
-def run_plain_dashboard(status_dir: str, refresh_interval: float) -> None:
+def run_plain_dashboard(status_dir: str, refresh_interval: float, check_path: str = None) -> None:
     """Run the dashboard using plain text output."""
     try:
         while True:
             statuses = get_all_statuses(status_dir)
-            print_plain_table(statuses)
+            print_plain_table(statuses, check_path)
             time.sleep(refresh_interval)
     except KeyboardInterrupt:
         print("\n\nMonitor stopped.")
@@ -350,9 +364,9 @@ Examples:
     )
     
     parser.add_argument(
-        "--plain", "-p",
-        action="store_true",
-        help="Force plain text output (no rich formatting)"
+        "--path",
+        default=".",
+        help="Path to check for free disk space (default: current directory)"
     )
     
     args = parser.parse_args()
@@ -360,6 +374,7 @@ Examples:
     # Print startup info
     print(f"Starting TikTok Live Recorder Monitor...")
     print(f"Status directory: {os.path.abspath(args.status_dir)}")
+    print(f"Recording directory: {os.path.abspath(args.path)}")
     print(f"Refresh interval: {args.refresh}s")
     
     if not HAS_RICH:
@@ -370,9 +385,9 @@ Examples:
     
     # Run appropriate dashboard
     if args.plain or not HAS_RICH:
-        run_plain_dashboard(args.status_dir, args.refresh)
+        run_plain_dashboard(args.status_dir, args.refresh, args.path)
     else:
-        run_rich_dashboard(args.status_dir, args.refresh)
+        run_rich_dashboard(args.status_dir, args.refresh, args.path)
 
 
 if __name__ == "__main__":

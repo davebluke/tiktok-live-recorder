@@ -25,16 +25,21 @@ class ResolutionMonitor:
     Runs in a separate thread and sets a flag when resolution changes.
     """
     
-    def __init__(self, stream_url, ffprobe_path="ffprobe", poll_interval=3):
+    def __init__(self, stream_url, ffprobe_path="ffprobe", poll_interval=10, stability_threshold=3):
         self.stream_url = stream_url
         self.ffprobe_path = ffprobe_path
         self.poll_interval = poll_interval
+        self.stability_threshold = stability_threshold  # Number of consistent readings required to confirm change
         
         self.current_resolution = None
         self.resolution_changed = threading.Event()
         self.new_resolution = None
         self.stop_event = threading.Event()
         self._thread = None
+        
+        # Stability tracking
+        self.pending_resolution = None
+        self.consistency_count = 0
     
     def get_stream_resolution(self):
         """
@@ -47,7 +52,7 @@ class ResolutionMonitor:
             "-select_streams", "v:0",
             "-show_entries", "stream=width,height",
             "-of", "json",
-            "-timeout", "5000000",  # 5 second timeout in microseconds
+            "-timeout", "10000000",  # 10 second timeout in microseconds
             self.stream_url
         ]
         
@@ -56,7 +61,7 @@ class ResolutionMonitor:
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=10,
+                timeout=15,
                 encoding="utf-8",
                 errors="replace"
             )
@@ -70,7 +75,8 @@ class ResolutionMonitor:
         except subprocess.TimeoutExpired:
             pass
         except Exception as e:
-            print(f"[!] ffprobe error: {e}")
+            # Don't print every error to avoid spamming console
+            pass
         
         return None
     
@@ -80,28 +86,44 @@ class ResolutionMonitor:
         Polls the stream resolution and checks for changes.
         """
         display_counter = 0
-        display_interval = 10  # Show resolution every 10 polls (~30 seconds)
+        display_interval = 60 // self.poll_interval  # Show resolution roughly every minute
         
         while not self.stop_event.is_set():
             resolution = self.get_stream_resolution()
             
             if resolution:
                 if self.current_resolution is None:
-                    # First detection
+                    # First detection - accept immediately
                     self.current_resolution = resolution
                     print(f"[*] Recording Resolution: {resolution[0]}x{resolution[1]}")
+                
                 elif resolution != self.current_resolution:
-                    # Resolution changed!
-                    old_res = self.current_resolution
-                    self.new_resolution = resolution
-                    print(f"\n[!] Resolution Change: {old_res[0]}x{old_res[1]} -> {resolution[0]}x{resolution[1]}")
-                    self.resolution_changed.set()
-                    return  # Exit the monitor loop
+                    # Potential change detected!
+                    if resolution == self.pending_resolution:
+                        self.consistency_count += 1
+                        print(f"[*] Verifying resolution change ({self.consistency_count}/{self.stability_threshold})...")
+                    else:
+                        # New potential change detected
+                        self.pending_resolution = resolution
+                        self.consistency_count = 1
+                    
+                    # If we have enough consistent readings, confirm the change
+                    if self.consistency_count >= self.stability_threshold:
+                        old_res = self.current_resolution
+                        self.new_resolution = resolution
+                        print(f"\n[!] Resolution Change Confirmed: {old_res[0]}x{old_res[1]} -> {resolution[0]}x{resolution[1]}")
+                        self.resolution_changed.set()
+                        return  # Exit the monitor loop
+                
                 else:
+                    # Resolution matches current - reset consistency checks
+                    self.pending_resolution = None
+                    self.consistency_count = 0
+                    
                     # Periodically display current resolution
                     display_counter += 1
                     if display_counter >= display_interval:
-                        print(f"[*] Current Resolution: {resolution[0]}x{resolution[1]}")
+                        print(f"[*] Current Resolution: {resolution[0]}x{resolution[1]} (Stable)")
                         display_counter = 0
             
             # Wait for poll interval or until stopped
@@ -143,7 +165,7 @@ def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg", status_manager=
         ffprobe_path = "ffprobe"
     
     # Start resolution monitor
-    monitor = ResolutionMonitor(stream_url, ffprobe_path=ffprobe_path, poll_interval=3)
+    monitor = ResolutionMonitor(stream_url, ffprobe_path=ffprobe_path, poll_interval=10)
     monitor.start()
     
     # Wait briefly for initial resolution detection
