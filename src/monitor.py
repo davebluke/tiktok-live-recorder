@@ -319,10 +319,12 @@ def run_rich_dashboard(status_dir: str, refresh_interval: float, check_path: str
         )
     
     try:
-        with Live(generate_display(), refresh_per_second=4, console=console) as live:
+        # Use lower refresh rate to prevent flickering on Windows terminals
+        # The screen only needs to update when we have new data
+        with Live(generate_display(), refresh_per_second=0.5, console=console, screen=True, vertical_overflow="visible") as live:
             while True:
                 time.sleep(refresh_interval)
-                live.update(generate_display())
+                live.update(generate_display(), refresh=True)
     except KeyboardInterrupt:
         console.print("\n[yellow]Monitor stopped.[/yellow]")
 
