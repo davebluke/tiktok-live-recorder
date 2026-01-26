@@ -180,10 +180,10 @@ def create_rich_table(statuses: list) -> Table:
     )
     
     table.add_column("Username", style="cyan", min_width=15)
-    table.add_column("Status", justify="center", min_width=12)
-    table.add_column("Heartbeat", justify="center", min_width=10)
+    table.add_column("Status", justify="center", min_width=12, padding=(0, 4))
+    table.add_column("Heartbeat", justify="center", min_width=10, padding=(0, 4))
     table.add_column("PID", justify="right", min_width=8)
-    table.add_column("Current File", min_width=30)
+    table.add_column("Current File", min_width=30, padding=(0, 4))
     table.add_column("Size (MB)", justify="right", min_width=10)
     
     if not statuses:
