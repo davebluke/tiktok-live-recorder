@@ -300,17 +300,17 @@ def run_rich_dashboard(status_dir: str, refresh_interval: float, check_path: str
         
         # Get disk space info
         drives = get_recording_drives(statuses, check_path)
-        disk_info = ""
-        for drive, (free_gb, total_gb, percent_free) in drives.items():
-            color = "green" if percent_free > 20 else ("yellow" if percent_free > 10 else "red")
-            disk_info += f" | [{color}]{drive} {free_gb:.1f} GB free ({percent_free:.0f}%)[/{color}]"
         
         footer = Text()
         footer.append(f"\nLast refresh: {datetime.now().strftime('%H:%M:%S')} ", style="dim")
         footer.append("| Press Ctrl+C to exit", style="dim")
         footer.append(f" | Status dir: {status_dir}", style="dim blue")
-        if disk_info:
-            footer.append(disk_info)
+        
+        # Add disk info with proper styling
+        for drive, (free_gb, total_gb, percent_free) in drives.items():
+            color = "green" if percent_free > 20 else ("yellow" if percent_free > 10 else "red")
+            footer.append(" | ", style="dim")
+            footer.append(f"{drive} {free_gb:.1f} GB free ({percent_free:.0f}%)", style=color)
         
         return Panel.fit(
             table,
@@ -365,8 +365,8 @@ Examples:
     
     parser.add_argument(
         "--path",
-        default=".",
-        help="Path to check for free disk space (default: current directory)"
+        default=None,
+        help="Path to check for free disk space (default: auto-detect from recordings)"
     )
     
     parser.add_argument(
@@ -380,7 +380,7 @@ Examples:
     # Print startup info
     print(f"Starting TikTok Live Recorder Monitor...")
     print(f"Status directory: {os.path.abspath(args.status_dir)}")
-    print(f"Recording directory: {os.path.abspath(args.path)}")
+    print(f"Recording directory: {os.path.abspath(args.path) if args.path else '(auto-detect from recordings)'}")
     print(f"Refresh interval: {args.refresh}s")
     
     if not HAS_RICH:
