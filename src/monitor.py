@@ -179,12 +179,12 @@ def create_rich_table(statuses: list) -> Table:
         header_style="bold white on blue",
     )
     
-    table.add_column("Username", style="cyan", min_width=15)
-    table.add_column("Status", justify="center", min_width=12)
-    table.add_column("Heartbeat", justify="center", min_width=10)
-    table.add_column("PID", justify="right", min_width=8)
-    table.add_column("Current File", min_width=30)
-    table.add_column("Size (MB)", justify="right", min_width=10)
+    table.add_column("Username", style="cyan", width=16, no_wrap=True)
+    table.add_column("Status", justify="center", width=14, no_wrap=True)
+    table.add_column("Heartbeat", justify="center", width=12, no_wrap=True)
+    table.add_column("PID", justify="right", width=8, no_wrap=True)
+    table.add_column("Current File", width=40, no_wrap=True, overflow="ellipsis")
+    table.add_column("Size (MB)", justify="right", width=10, no_wrap=True)
     
     if not statuses:
         table.add_row(
