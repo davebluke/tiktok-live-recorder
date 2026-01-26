@@ -369,6 +369,12 @@ Examples:
         help="Path to check for free disk space (default: current directory)"
     )
     
+    parser.add_argument(
+        "--plain", "-p",
+        action="store_true",
+        help="Force plain text mode (no rich formatting)"
+    )
+    
     args = parser.parse_args()
     
     # Print startup info
