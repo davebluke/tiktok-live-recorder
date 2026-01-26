@@ -25,7 +25,7 @@ class ResolutionMonitor:
     Runs in a separate thread and sets a flag when resolution changes.
     """
     
-    def __init__(self, stream_url, ffprobe_path="ffprobe", poll_interval=10, stability_threshold=3):
+    def __init__(self, stream_url, ffprobe_path="ffprobe", poll_interval=3, stability_threshold=2):
         self.stream_url = stream_url
         self.ffprobe_path = ffprobe_path
         self.poll_interval = poll_interval
@@ -165,7 +165,7 @@ def record_stream(stream_url, output_file, ffmpeg_path="ffmpeg", status_manager=
         ffprobe_path = "ffprobe"
     
     # Start resolution monitor
-    monitor = ResolutionMonitor(stream_url, ffprobe_path=ffprobe_path, poll_interval=10)
+    monitor = ResolutionMonitor(stream_url, ffprobe_path=ffprobe_path, poll_interval=3)
     monitor.start()
     
     # Wait briefly for initial resolution detection

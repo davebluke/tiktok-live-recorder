@@ -319,7 +319,7 @@ def run_rich_dashboard(status_dir: str, refresh_interval: float, check_path: str
         )
     
     try:
-        with Live(generate_display(), refresh_per_second=1/refresh_interval, console=console) as live:
+        with Live(generate_display(), refresh_per_second=4, console=console) as live:
             while True:
                 time.sleep(refresh_interval)
                 live.update(generate_display())
