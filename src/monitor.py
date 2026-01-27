@@ -290,12 +290,18 @@ def print_plain_table(statuses: list, check_path: str = None) -> None:
     print("   Press Ctrl+C to exit")
 
 
+# Hide stale entries older than this (1.5 hours = 5400 seconds)
+STALE_HIDE_THRESHOLD = 5400
+
+
 def run_rich_dashboard(status_dir: str, refresh_interval: float, check_path: str = None) -> None:
     """Run the dashboard using rich library."""
     console = Console()
     
     def generate_display():
-        statuses = get_all_statuses(status_dir)
+        all_statuses = get_all_statuses(status_dir)
+        # Filter out very old stale entries (older than 1.5 hours)
+        statuses = [s for s in all_statuses if s.get("age_seconds", 0) < STALE_HIDE_THRESHOLD]
         table = create_rich_table(statuses)
         
         # Get disk space info
@@ -319,12 +325,11 @@ def run_rich_dashboard(status_dir: str, refresh_interval: float, check_path: str
         )
     
     try:
-        # Use lower refresh rate to prevent flickering on Windows terminals
-        # The screen only needs to update when we have new data
-        with Live(generate_display(), refresh_per_second=0.5, console=console, screen=True, vertical_overflow="visible") as live:
+        # Use higher refresh rate for smoother updates, screen=False to avoid full redraws
+        with Live(generate_display(), refresh_per_second=4, console=console, screen=False, vertical_overflow="visible") as live:
             while True:
                 time.sleep(refresh_interval)
-                live.update(generate_display(), refresh=True)
+                live.update(generate_display())
     except KeyboardInterrupt:
         console.print("\n[yellow]Monitor stopped.[/yellow]")
 
@@ -333,7 +338,9 @@ def run_plain_dashboard(status_dir: str, refresh_interval: float, check_path: st
     """Run the dashboard using plain text output."""
     try:
         while True:
-            statuses = get_all_statuses(status_dir)
+            all_statuses = get_all_statuses(status_dir)
+            # Filter out very old stale entries (older than 1.5 hours)
+            statuses = [s for s in all_statuses if s.get("age_seconds", 0) < STALE_HIDE_THRESHOLD]
             print_plain_table(statuses, check_path)
             time.sleep(refresh_interval)
     except KeyboardInterrupt:
