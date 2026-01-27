@@ -298,6 +298,9 @@ def run_rich_dashboard(status_dir: str, refresh_interval: float, check_path: str
     """Run the dashboard using rich library."""
     console = Console()
     
+    # Cache the last output to avoid unnecessary redraws
+    last_output = ""
+    
     def generate_display():
         all_statuses = get_all_statuses(status_dir)
         # Filter out very old stale entries (older than 1.5 hours)
@@ -325,13 +328,17 @@ def run_rich_dashboard(status_dir: str, refresh_interval: float, check_path: str
         )
     
     try:
-        # Use higher refresh rate for smoother updates, screen=False to avoid full redraws
-        with Live(generate_display(), refresh_per_second=4, console=console, screen=False, vertical_overflow="visible") as live:
+        # Use alternate screen buffer for flicker-free updates on Windows
+        with console.screen():
             while True:
+                # Clear and immediately redraw to prevent double-buffering artifacts
+                console.clear()
+                console.print(generate_display())
                 time.sleep(refresh_interval)
-                live.update(generate_display())
     except KeyboardInterrupt:
-        console.print("\n[yellow]Monitor stopped.[/yellow]")
+        pass
+    
+    console.print("[yellow]Monitor stopped.[/yellow]")
 
 
 def run_plain_dashboard(status_dir: str, refresh_interval: float, check_path: str = None) -> None:
