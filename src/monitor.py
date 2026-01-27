@@ -157,17 +157,18 @@ def get_state_display(state: str, is_stale: bool) -> tuple:
     """
     Get display text and color for a state.
     Returns (display_text, color_code)
+    Pads text to fixed width for consistent terminal alignment.
     """
     if is_stale:
-        return ("⚠️  STALE", "yellow")
+        return ("⚠️ STALE    ", "yellow")
     
     state_map = {
-        "STARTING": ("🔄 STARTING", "cyan"),
-        "WAITING": ("⏳ WAITING", "blue"),
+        "STARTING":  ("🔄 STARTING ", "cyan"),
+        "WAITING":   ("⏳ WAITING  ", "blue"),
         "RECORDING": ("🔴 RECORDING", "red"),
-        "STOPPED": ("⏹️  STOPPED", "grey"),
+        "STOPPED":   ("⏹️ STOPPED  ", "grey"),
     }
-    return state_map.get(state, (state, "white"))
+    return state_map.get(state, (f"   {state:<9}", "white"))
 
 
 def create_rich_table(statuses: list) -> Table:
