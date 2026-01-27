@@ -218,7 +218,7 @@ def create_rich_table(statuses: list) -> Table:
         
         table.add_row(
             username,
-            f"[{state_color}]{state_text}[/{state_color}]",
+            f" [{state_color}]{state_text}[/{state_color}] ",
             f"[{heartbeat_style}]{heartbeat_text} ago[/{heartbeat_style}]",
             pid,
             current_file or "-",
