@@ -79,20 +79,33 @@ class StatusManager:
                 "output_path": self.output_path
             }
             
-            try:
-                # Write atomically using temp file + rename
-                temp_file = self.status_file + ".tmp"
-                with open(temp_file, "w", encoding="utf-8") as f:
-                    json.dump(status_data, f, indent=2)
-                
-                # Atomic rename (works on Windows with same drive)
-                if os.path.exists(self.status_file):
-                    os.remove(self.status_file)
-                os.rename(temp_file, self.status_file)
-                
-            except Exception as e:
-                # Non-critical - log but don't crash
-                print(f"[StatusManager] Warning: Could not write status: {e}")
+            # Retry mechanism for Windows file locking issues
+            max_retries = 3
+            retry_delay = 0.05  # 50ms
+            
+            for attempt in range(max_retries):
+                try:
+                    # Write atomically using temp file + rename
+                    temp_file = self.status_file + ".tmp"
+                    with open(temp_file, "w", encoding="utf-8") as f:
+                        json.dump(status_data, f, indent=2)
+                    
+                    # Atomic rename (works on Windows with same drive)
+                    if os.path.exists(self.status_file):
+                        os.remove(self.status_file)
+                    os.rename(temp_file, self.status_file)
+                    return  # Success, exit the function
+                    
+                except PermissionError:
+                    # File is locked by another process (e.g., status reader)
+                    if attempt < max_retries - 1:
+                        time.sleep(retry_delay)
+                    # On last attempt, silently skip (non-critical update)
+                    
+                except Exception as e:
+                    # Non-critical - log but don't crash
+                    print(f"[StatusManager] Warning: Could not write status: {e}")
+                    break  # Don't retry on other errors
     
     def set_state(self, state: str) -> None:
         """
