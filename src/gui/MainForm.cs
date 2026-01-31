@@ -206,15 +206,14 @@ namespace TikTokRecorderGui
                         cardData.ViewerCount = liveInfo.ViewerCount;
                         cardData.Title = liveInfo.Title;
 
-                        // Always try to get thumbnail (avatar fallback works for non-live users too)
-                        if (!string.IsNullOrEmpty(liveInfo.ThumbnailUrl))
-                        {
-                            cardData.Thumbnail = _tikTokApi.GetThumbnailAsync(liveInfo.ThumbnailUrl).Result;
-                        }
+                        // Try to get thumbnail from API, fall back to placeholder
+                        cardData.Thumbnail = _tikTokApi.GetUserThumbnail(username, liveInfo.ThumbnailUrl);
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
-                        // Continue without live info
+                        Console.WriteLine("[MainForm] Error fetching live info for " + username + ": " + ex.Message);
+                        // Use placeholder when API fails
+                        cardData.Thumbnail = _tikTokApi.CreatePlaceholderImage(username);
                     }
 
                     results.Add(cardData);

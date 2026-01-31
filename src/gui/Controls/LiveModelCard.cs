@@ -105,6 +105,14 @@ namespace TikTokRecorderGui.Controls
         /// </summary>
         public void SetSnapshot(Image image)
         {
+            if (image == null)
+            {
+                Console.WriteLine("[LiveModelCard] SetSnapshot: Image is null for " + _username);
+                return;
+            }
+
+            Console.WriteLine("[LiveModelCard] SetSnapshot: Setting image " + image.Width + "x" + image.Height + " for " + _username);
+            
             if (pictureSnapshot.Image != null)
             {
                 var oldImage = pictureSnapshot.Image;
@@ -112,6 +120,14 @@ namespace TikTokRecorderGui.Controls
                 oldImage.Dispose();
             }
             pictureSnapshot.Image = image;
+            
+            // Ensure the picture box is visible and properly rendered
+            pictureSnapshot.Visible = true;
+            pictureSnapshot.BringToFront();
+            pictureSnapshot.Invalidate();
+            pictureSnapshot.Update();
+            
+            Console.WriteLine("[LiveModelCard] SetSnapshot: Image set successfully, pictureSnapshot.Image is " + (pictureSnapshot.Image != null ? "not null" : "null"));
         }
 
         /// <summary>

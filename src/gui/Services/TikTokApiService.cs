@@ -1,8 +1,10 @@
 using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
 
 namespace TikTokRecorderGui.Services
@@ -147,31 +149,44 @@ namespace TikTokRecorderGui.Services
                 {
                     // Get signed URL from TikRec
                     var signUrl = TIKREC_API + "/tiktok/room/api/sign?unique_id=" + username;
+                    Console.WriteLine("[TikTokApi] GetRoomId: Calling " + signUrl);
                     var signResponse = client.DownloadString(signUrl);
+                    Console.WriteLine("[TikTokApi] GetRoomId: Sign response = " + signResponse.Substring(0, Math.Min(200, signResponse.Length)));
                     var signJson = JObject.Parse(signResponse);
                     var signedPath = signJson["signed_path"] != null ? signJson["signed_path"].Value<string>() : null;
 
                     if (string.IsNullOrEmpty(signedPath))
+                    {
+                        Console.WriteLine("[TikTokApi] GetRoomId: No signed_path returned");
                         return null;
+                    }
 
                     // Get room info using signed path
                     var roomUrl = TIKTOK_BASE + signedPath;
+                    Console.WriteLine("[TikTokApi] GetRoomId: Getting room from " + roomUrl);
                     var roomResponse = client.DownloadString(roomUrl);
                     
                     if (roomResponse.Contains("Please wait"))
+                    {
+                        Console.WriteLine("[TikTokApi] GetRoomId: Got rate limited (Please wait)");
                         return null;
+                    }
 
                     var roomJson = JObject.Parse(roomResponse);
                     var data = roomJson["data"];
                     if (data != null && data["user"] != null && data["user"]["roomId"] != null)
                     {
-                        return data["user"]["roomId"].Value<string>();
+                        var roomId = data["user"]["roomId"].Value<string>();
+                        Console.WriteLine("[TikTokApi] GetRoomId: Found room ID = " + roomId);
+                        return roomId;
                     }
+                    Console.WriteLine("[TikTokApi] GetRoomId: No roomId in response");
                     return null;
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine("[TikTokApi] GetRoomId ERROR: " + ex.Message);
                 return null;
             }
         }
@@ -193,6 +208,10 @@ namespace TikTokRecorderGui.Services
             {
                 using (var client = CreateClient())
                 {
+                    // For image downloads, we need different Accept headers
+                    // Request JPEG/PNG first since .NET 4.0 doesn't support WebP natively
+                    client.Headers[HttpRequestHeader.Accept] = "image/jpeg,image/png,image/gif,image/*;q=0.8,*/*;q=0.5";
+                    
                     var bytes = client.DownloadData(url);
                     Console.WriteLine("[TikTokApi] GetThumbnail: Downloaded " + bytes.Length + " bytes");
                     
@@ -222,6 +241,85 @@ namespace TikTokRecorderGui.Services
             var tcs = new System.Threading.Tasks.TaskCompletionSource<Image>();
             tcs.SetResult(GetThumbnail(url));
             return tcs.Task;
+        }
+
+        /// <summary>
+        /// Gets a thumbnail for a user - tries API first, falls back to placeholder.
+        /// </summary>
+        public Image GetUserThumbnail(string username, string thumbnailUrl = null)
+        {
+            // Try to download the actual thumbnail
+            if (!string.IsNullOrEmpty(thumbnailUrl))
+            {
+                var image = GetThumbnail(thumbnailUrl);
+                if (image != null)
+                    return image;
+            }
+
+            // Fall back to placeholder
+            return CreatePlaceholderImage(username);
+        }
+
+        /// <summary>
+        /// Creates a placeholder image with user initials.
+        /// </summary>
+        public Image CreatePlaceholderImage(string username)
+        {
+            int size = 184;
+            var bitmap = new Bitmap(size, size);
+            
+            using (var g = Graphics.FromImage(bitmap))
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+                
+                // Generate a color based on username hash
+                int hash = username.GetHashCode();
+                var colors = new Color[]
+                {
+                    Color.FromArgb(255, 100, 100),  // Red
+                    Color.FromArgb(255, 150, 80),   // Orange
+                    Color.FromArgb(100, 180, 255),  // Blue
+                    Color.FromArgb(150, 100, 255),  // Purple
+                    Color.FromArgb(100, 200, 150),  // Green
+                    Color.FromArgb(255, 100, 150),  // Pink
+                    Color.FromArgb(100, 200, 200),  // Teal
+                };
+                var bgColor = colors[Math.Abs(hash) % colors.Length];
+                
+                // Fill background with gradient
+                using (var brush = new LinearGradientBrush(
+                    new Rectangle(0, 0, size, size),
+                    bgColor,
+                    Color.FromArgb(bgColor.R / 2, bgColor.G / 2, bgColor.B / 2),
+                    45F))
+                {
+                    g.FillRectangle(brush, 0, 0, size, size);
+                }
+                
+                // Draw initials
+                string initials = username.Length >= 2 
+                    ? username.Substring(0, 2).ToUpper() 
+                    : username.ToUpper();
+                
+                using (var font = new Font("Segoe UI", 48, FontStyle.Bold))
+                using (var textBrush = new SolidBrush(Color.White))
+                {
+                    var textSize = g.MeasureString(initials, font);
+                    float x = (size - textSize.Width) / 2;
+                    float y = (size - textSize.Height) / 2;
+                    g.DrawString(initials, font, textBrush, x, y);
+                }
+                
+                // Draw TikTok icon indicator in corner
+                using (var iconFont = new Font("Segoe UI", 14, FontStyle.Bold))
+                using (var iconBrush = new SolidBrush(Color.FromArgb(200, 255, 255, 255)))
+                {
+                    g.DrawString("♪", iconFont, iconBrush, 8, size - 28);
+                }
+            }
+            
+            return bitmap;
         }
 
         public void Dispose()

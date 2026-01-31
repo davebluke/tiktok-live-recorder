@@ -30,9 +30,12 @@ namespace TikTokRecorderGui.Controls
             this.SuspendLayout();
 
             // panelMain
+            // NOTE: Add panelInfo first, then pictureSnapshot
+            // In WinForms, docking happens in REVERSE order of adding,
+            // so panelInfo (Bottom) docks first, then pictureSnapshot (Fill) fills remaining space
             this.panelMain.BackColor = System.Drawing.Color.FromArgb(40, 40, 48);
-            this.panelMain.Controls.Add(this.pictureSnapshot);
             this.panelMain.Controls.Add(this.panelInfo);
+            this.panelMain.Controls.Add(this.pictureSnapshot);
             this.panelMain.Dock = System.Windows.Forms.DockStyle.Fill;
             this.panelMain.Location = new System.Drawing.Point(5, 5);
             this.panelMain.Name = "panelMain";
