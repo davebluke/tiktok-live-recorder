@@ -136,16 +136,19 @@ class StatusManager:
         """
         self.current_file = filename
         self.file_size_mb = 0.0
+        self.last_online = datetime.now().isoformat()  # Track when model is online
         self.set_state(self.STATE_RECORDING)
     
     def update_recording_progress(self, file_size_mb: float) -> None:
         """
         Update recording progress (file size).
+        Also updates last_online so it reflects the most recent online time.
         
         Args:
             file_size_mb: Current file size in megabytes
         """
         self.file_size_mb = file_size_mb
+        self.last_online = datetime.now().isoformat()  # Keep updating while online
         self._write_status()
     
     def heartbeat(self) -> None:
@@ -163,7 +166,11 @@ class StatusManager:
         self._write_status()
     
     def set_live_detected(self) -> None:
-        """Update last_online timestamp when user is detected as live."""
+        """
+        Update last_online timestamp when user is detected as live.
+        This is called on initial live detection; last_online is also
+        updated during recording progress updates.
+        """
         self.last_online = datetime.now().isoformat()
         self._write_status()
     
