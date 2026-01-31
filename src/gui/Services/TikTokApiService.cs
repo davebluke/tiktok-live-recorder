@@ -18,8 +18,9 @@ namespace TikTokRecorderGui.Services
 
         public TikTokApiService()
         {
-            // Enable TLS 1.2 for HTTPS connections
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls | SecurityProtocolType.Ssl3;
+            // Enable TLS 1.2 for HTTPS connections (3072 = Tls12, required for modern HTTPS)
+            // .NET 4.0 doesn't have Tls12 enum, so we use the numeric value
+            ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | SecurityProtocolType.Tls | SecurityProtocolType.Ssl3;
         }
 
         /// <summary>
@@ -75,6 +76,16 @@ namespace TikTokRecorderGui.Services
                         ViewerCount = data["user_count"] != null ? data["user_count"].Value<int>() : 0
                     };
 
+                    // Try to get owner's avatar image for non-live users
+                    if (data["owner"] != null && data["owner"]["avatar_thumb"] != null)
+                    {
+                        var avatarThumb = data["owner"]["avatar_thumb"];
+                        if (avatarThumb["url_list"] != null && avatarThumb["url_list"].HasValues)
+                        {
+                            liveInfo.AvatarUrl = avatarThumb["url_list"][0].Value<string>();
+                        }
+                    }
+
                     // Try to get cover/thumbnail image
                     if (isLive)
                     {
@@ -83,6 +94,12 @@ namespace TikTokRecorderGui.Services
                         {
                             liveInfo.ThumbnailUrl = cover["url_list"][0].Value<string>();
                         }
+                    }
+
+                    // Use avatar as fallback thumbnail if no cover available
+                    if (string.IsNullOrEmpty(liveInfo.ThumbnailUrl) && !string.IsNullOrEmpty(liveInfo.AvatarUrl))
+                    {
+                        liveInfo.ThumbnailUrl = liveInfo.AvatarUrl;
                     }
 
                     return liveInfo;
@@ -198,6 +215,7 @@ namespace TikTokRecorderGui.Services
         public bool IsLive { get; set; }
         public string RoomId { get; set; }
         public string Title { get; set; }
+        public string AvatarUrl { get; set; }
         public int ViewerCount { get; set; }
         public string ThumbnailUrl { get; set; }
     }

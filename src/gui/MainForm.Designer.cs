@@ -32,6 +32,7 @@ namespace TikTokRecorderGui
             this.colOutputPath = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.panelStatusFooter = new System.Windows.Forms.Panel();
             this.lblSummary = new System.Windows.Forms.Label();
+            this.lblDiskSpace = new System.Windows.Forms.Label();
             this.lblRefreshStatus = new System.Windows.Forms.Label();
             this.tabLiveModels = new System.Windows.Forms.TabPage();
             this.panelLiveModelsMain = new System.Windows.Forms.Panel();
@@ -40,6 +41,8 @@ namespace TikTokRecorderGui
             this.lblSnapshotRefresh = new System.Windows.Forms.Label();
             this.cmbRefreshInterval = new System.Windows.Forms.ComboBox();
             this.btnRefreshNow = new System.Windows.Forms.Button();
+            this.panelLiveFooter = new System.Windows.Forms.Panel();
+            this.lblLiveDiskSpace = new System.Windows.Forms.Label();
             this.panelHeader = new System.Windows.Forms.Panel();
             this.lblTitle = new System.Windows.Forms.Label();
             this.btnSettings = new System.Windows.Forms.Button();
@@ -146,6 +149,7 @@ namespace TikTokRecorderGui
             // panelStatusFooter
             this.panelStatusFooter.BackColor = System.Drawing.Color.FromArgb(35, 35, 42);
             this.panelStatusFooter.Controls.Add(this.lblSummary);
+            this.panelStatusFooter.Controls.Add(this.lblDiskSpace);
             this.panelStatusFooter.Controls.Add(this.lblRefreshStatus);
             this.panelStatusFooter.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.panelStatusFooter.Location = new System.Drawing.Point(3, 475);
@@ -163,6 +167,16 @@ namespace TikTokRecorderGui
             this.lblSummary.TabIndex = 0;
             this.lblSummary.Text = "Loading...";
 
+            // lblDiskSpace
+            this.lblDiskSpace.AutoSize = true;
+            this.lblDiskSpace.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblDiskSpace.ForeColor = System.Drawing.Color.FromArgb(100, 200, 150);
+            this.lblDiskSpace.Location = new System.Drawing.Point(550, 12);
+            this.lblDiskSpace.Name = "lblDiskSpace";
+            this.lblDiskSpace.Size = new System.Drawing.Size(150, 15);
+            this.lblDiskSpace.TabIndex = 2;
+            this.lblDiskSpace.Text = "💾 Free: --";
+
             // lblRefreshStatus
             this.lblRefreshStatus.Anchor = System.Windows.Forms.AnchorStyles.Right;
             this.lblRefreshStatus.Font = new System.Drawing.Font("Segoe UI", 9F);
@@ -176,6 +190,7 @@ namespace TikTokRecorderGui
 
             // tabLiveModels
             this.tabLiveModels.Controls.Add(this.panelLiveModelsMain);
+            this.tabLiveModels.Controls.Add(this.panelLiveFooter);
             this.tabLiveModels.Controls.Add(this.panelLiveHeader);
             this.tabLiveModels.Location = new System.Drawing.Point(4, 28);
             this.tabLiveModels.Name = "tabLiveModels";
@@ -190,7 +205,7 @@ namespace TikTokRecorderGui
             this.panelLiveModelsMain.Dock = System.Windows.Forms.DockStyle.Fill;
             this.panelLiveModelsMain.Location = new System.Drawing.Point(3, 48);
             this.panelLiveModelsMain.Name = "panelLiveModelsMain";
-            this.panelLiveModelsMain.Size = new System.Drawing.Size(986, 467);
+            this.panelLiveModelsMain.Size = new System.Drawing.Size(986, 427);
             this.panelLiveModelsMain.TabIndex = 0;
 
             // flowLayoutModels
@@ -247,6 +262,25 @@ namespace TikTokRecorderGui
             this.btnRefreshNow.Text = "🔄 Refresh";
             this.btnRefreshNow.UseVisualStyleBackColor = false;
             this.btnRefreshNow.Click += new System.EventHandler(this.btnRefreshNow_Click);
+
+            // panelLiveFooter
+            this.panelLiveFooter.BackColor = System.Drawing.Color.FromArgb(35, 35, 42);
+            this.panelLiveFooter.Controls.Add(this.lblLiveDiskSpace);
+            this.panelLiveFooter.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.panelLiveFooter.Location = new System.Drawing.Point(3, 475);
+            this.panelLiveFooter.Name = "panelLiveFooter";
+            this.panelLiveFooter.Size = new System.Drawing.Size(986, 40);
+            this.panelLiveFooter.TabIndex = 2;
+
+            // lblLiveDiskSpace
+            this.lblLiveDiskSpace.AutoSize = true;
+            this.lblLiveDiskSpace.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblLiveDiskSpace.ForeColor = System.Drawing.Color.FromArgb(100, 200, 150);
+            this.lblLiveDiskSpace.Location = new System.Drawing.Point(10, 12);
+            this.lblLiveDiskSpace.Name = "lblLiveDiskSpace";
+            this.lblLiveDiskSpace.Size = new System.Drawing.Size(150, 15);
+            this.lblLiveDiskSpace.TabIndex = 0;
+            this.lblLiveDiskSpace.Text = "💾 Free: --";
 
             // panelHeader
             this.panelHeader.BackColor = System.Drawing.Color.FromArgb(40, 40, 48);
@@ -332,6 +366,7 @@ namespace TikTokRecorderGui
         private System.Windows.Forms.DataGridView dataGridStatus;
         private System.Windows.Forms.Panel panelStatusFooter;
         private System.Windows.Forms.Label lblSummary;
+        private System.Windows.Forms.Label lblDiskSpace;
         private System.Windows.Forms.Label lblRefreshStatus;
         private System.Windows.Forms.DataGridViewTextBoxColumn colUsername;
         private System.Windows.Forms.DataGridViewTextBoxColumn colState;
@@ -347,6 +382,8 @@ namespace TikTokRecorderGui
         private System.Windows.Forms.Label lblSnapshotRefresh;
         private System.Windows.Forms.ComboBox cmbRefreshInterval;
         private System.Windows.Forms.Button btnRefreshNow;
+        private System.Windows.Forms.Panel panelLiveFooter;
+        private System.Windows.Forms.Label lblLiveDiskSpace;
         private System.Windows.Forms.Timer refreshTimer;
         private System.Windows.Forms.Timer snapshotTimer;
     }

@@ -62,6 +62,7 @@ namespace TikTokRecorderGui
 
             // Initial load
             RefreshStatusGrid();
+            UpdateDiskSpace();
             LoadLiveModels();
         }
 
@@ -155,6 +156,9 @@ namespace TikTokRecorderGui
 
                 // Update summary
                 lblSummary.Text = summary.SummaryText;
+                
+                // Update disk space
+                UpdateDiskSpace();
             }
             catch (Exception ex)
             {
@@ -202,7 +206,8 @@ namespace TikTokRecorderGui
                         cardData.ViewerCount = liveInfo.ViewerCount;
                         cardData.Title = liveInfo.Title;
 
-                        if (liveInfo.IsLive && !string.IsNullOrEmpty(liveInfo.ThumbnailUrl))
+                        // Always try to get thumbnail (avatar fallback works for non-live users too)
+                        if (!string.IsNullOrEmpty(liveInfo.ThumbnailUrl))
                         {
                             cardData.Thumbnail = _tikTokApi.GetThumbnailAsync(liveInfo.ThumbnailUrl).Result;
                         }
@@ -340,6 +345,61 @@ namespace TikTokRecorderGui
         {
             base.OnFormClosing(e);
             if (_tikTokApi != null) _tikTokApi.Dispose();
+        }
+
+        /// <summary>
+        /// Updates the disk space display in the footer.
+        /// </summary>
+        private void UpdateDiskSpace()
+        {
+            try
+            {
+                // Try to get the output path from first active status to determine which drive to check
+                string driveLetter = "C";
+                var statuses = _statusService.GetAllStatuses();
+                foreach (var status in statuses)
+                {
+                    if (!string.IsNullOrEmpty(status.OutputPath) && status.OutputPath.Length >= 2 && status.OutputPath[1] == ':')
+                    {
+                        driveLetter = status.OutputPath.Substring(0, 1).ToUpper();
+                        break;
+                    }
+                }
+
+                var driveInfo = new DriveInfo(driveLetter);
+                if (driveInfo.IsReady)
+                {
+                    var freeGb = driveInfo.AvailableFreeSpace / (1024.0 * 1024.0 * 1024.0);
+                    var totalGb = driveInfo.TotalSize / (1024.0 * 1024.0 * 1024.0);
+                    
+                    // Choose color based on free space
+                    Color diskColor;
+                    if (freeGb < 10)
+                        diskColor = Color.OrangeRed;
+                    else if (freeGb < 50)
+                        diskColor = Color.Orange;
+                    else
+                        diskColor = Color.FromArgb(100, 200, 150);
+
+                    var diskText = string.Format("💾 {0}: Free {1:F1} GB / {2:F0} GB", driveLetter, freeGb, totalGb);
+
+                    // Update both labels
+                    lblDiskSpace.ForeColor = diskColor;
+                    lblDiskSpace.Text = diskText;
+                    lblLiveDiskSpace.ForeColor = diskColor;
+                    lblLiveDiskSpace.Text = diskText;
+                }
+                else
+                {
+                    lblDiskSpace.Text = "💾 Drive not ready";
+                    lblLiveDiskSpace.Text = "💾 Drive not ready";
+                }
+            }
+            catch (Exception)
+            {
+                lblDiskSpace.Text = "💾 --";
+                lblLiveDiskSpace.Text = "💾 --";
+            }
         }
     }
 
