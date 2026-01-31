@@ -42,15 +42,19 @@ namespace TikTokRecorderGui.Services
         /// </summary>
         public LiveInfo GetLiveInfo(string username)
         {
+            Console.WriteLine("[TikTokApi] GetLiveInfo: Fetching info for " + username);
             try
             {
                 // First get room ID via TikRec API
                 var roomId = GetRoomId(username);
                 if (string.IsNullOrEmpty(roomId))
                 {
+                    Console.WriteLine("[TikTokApi] GetLiveInfo: No room ID for " + username);
                     return new LiveInfo { Username = username, IsLive = false };
                 }
 
+                Console.WriteLine("[TikTokApi] GetLiveInfo: Got room ID " + roomId + " for " + username);
+                
                 // Get room info with stream details
                 using (var client = CreateClient())
                 {
@@ -61,11 +65,13 @@ namespace TikTokRecorderGui.Services
                     var data = json["data"];
                     if (data == null)
                     {
+                        Console.WriteLine("[TikTokApi] GetLiveInfo: No data in response for " + username);
                         return new LiveInfo { Username = username, IsLive = false };
                     }
 
                     var status = data["status"] != null ? data["status"].Value<int>() : 0;
                     var isLive = status == 2; // 2 = Live, 4 = Offline
+                    Console.WriteLine("[TikTokApi] GetLiveInfo: " + username + " status=" + status + ", isLive=" + isLive);
 
                     var liveInfo = new LiveInfo
                     {
@@ -83,6 +89,7 @@ namespace TikTokRecorderGui.Services
                         if (avatarThumb["url_list"] != null && avatarThumb["url_list"].HasValues)
                         {
                             liveInfo.AvatarUrl = avatarThumb["url_list"][0].Value<string>();
+                            Console.WriteLine("[TikTokApi] GetLiveInfo: Got avatar URL for " + username + ": " + liveInfo.AvatarUrl);
                         }
                     }
 
@@ -93,6 +100,7 @@ namespace TikTokRecorderGui.Services
                         if (cover != null && cover["url_list"] != null && cover["url_list"].HasValues)
                         {
                             liveInfo.ThumbnailUrl = cover["url_list"][0].Value<string>();
+                            Console.WriteLine("[TikTokApi] GetLiveInfo: Got cover URL for " + username + ": " + liveInfo.ThumbnailUrl);
                         }
                     }
 
@@ -100,13 +108,20 @@ namespace TikTokRecorderGui.Services
                     if (string.IsNullOrEmpty(liveInfo.ThumbnailUrl) && !string.IsNullOrEmpty(liveInfo.AvatarUrl))
                     {
                         liveInfo.ThumbnailUrl = liveInfo.AvatarUrl;
+                        Console.WriteLine("[TikTokApi] GetLiveInfo: Using avatar as thumbnail for " + username);
+                    }
+
+                    if (string.IsNullOrEmpty(liveInfo.ThumbnailUrl))
+                    {
+                        Console.WriteLine("[TikTokApi] GetLiveInfo: No thumbnail URL available for " + username);
                     }
 
                     return liveInfo;
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine("[TikTokApi] GetLiveInfo ERROR for " + username + ": " + ex.Message);
                 return new LiveInfo { Username = username, IsLive = false };
             }
         }
@@ -167,25 +182,34 @@ namespace TikTokRecorderGui.Services
         public Image GetThumbnail(string url)
         {
             if (string.IsNullOrEmpty(url))
+            {
+                Console.WriteLine("[TikTokApi] GetThumbnail: URL is null or empty");
                 return null;
+            }
+
+            Console.WriteLine("[TikTokApi] GetThumbnail: Downloading from " + url);
 
             try
             {
                 using (var client = CreateClient())
                 {
                     var bytes = client.DownloadData(url);
+                    Console.WriteLine("[TikTokApi] GetThumbnail: Downloaded " + bytes.Length + " bytes");
+                    
                     using (var ms = new MemoryStream(bytes))
                     {
                         // Create a copy of the image so the stream can be disposed
                         using (var original = Image.FromStream(ms))
                         {
+                            Console.WriteLine("[TikTokApi] GetThumbnail: Image loaded successfully, size " + original.Width + "x" + original.Height);
                             return new Bitmap(original);
                         }
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine("[TikTokApi] GetThumbnail ERROR: " + ex.Message);
                 return null;
             }
         }
