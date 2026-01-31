@@ -90,7 +90,7 @@ namespace TikTokRecorderGui.Services
                         var avatarThumb = data["owner"]["avatar_thumb"];
                         if (avatarThumb["url_list"] != null && avatarThumb["url_list"].HasValues)
                         {
-                            liveInfo.AvatarUrl = avatarThumb["url_list"][0].Value<string>();
+                            liveInfo.AvatarUrl = FindBestImageUrl(avatarThumb["url_list"]);
                             Console.WriteLine("[TikTokApi] GetLiveInfo: Got avatar URL for " + username + ": " + liveInfo.AvatarUrl);
                         }
                     }
@@ -101,7 +101,7 @@ namespace TikTokRecorderGui.Services
                         var cover = data["cover"];
                         if (cover != null && cover["url_list"] != null && cover["url_list"].HasValues)
                         {
-                            liveInfo.ThumbnailUrl = cover["url_list"][0].Value<string>();
+                            liveInfo.ThumbnailUrl = FindBestImageUrl(cover["url_list"]);
                             Console.WriteLine("[TikTokApi] GetLiveInfo: Got cover URL for " + username + ": " + liveInfo.ThumbnailUrl);
                         }
                     }
@@ -189,6 +189,36 @@ namespace TikTokRecorderGui.Services
                 Console.WriteLine("[TikTokApi] GetRoomId ERROR: " + ex.Message);
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Finds the best (non-WebP) image URL from a TikTok url_list.
+        /// TikTok often returns multiple URLs - WebP and JPEG versions.
+        /// </summary>
+        private string FindBestImageUrl(JToken urlList)
+        {
+            if (urlList == null || !urlList.HasValues)
+                return null;
+
+            // Try to find a JPEG/PNG URL first (avoid WebP which .NET 4.0 can't decode)
+            foreach (var url in urlList)
+            {
+                var urlStr = url.Value<string>();
+                if (string.IsNullOrEmpty(urlStr))
+                    continue;
+
+                // Prefer non-WebP formats
+                if (!urlStr.Contains("webp") && !urlStr.Contains(".webp"))
+                {
+                    Console.WriteLine("[TikTokApi] FindBestImageUrl: Found non-WebP URL: " + urlStr);
+                    return urlStr;
+                }
+            }
+
+            // If all are WebP, try the first one anyway (might get converted on server)
+            var firstUrl = urlList[0].Value<string>();
+            Console.WriteLine("[TikTokApi] FindBestImageUrl: Only WebP available, trying: " + firstUrl);
+            return firstUrl;
         }
 
         /// <summary>
