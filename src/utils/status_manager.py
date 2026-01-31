@@ -53,6 +53,8 @@ class StatusManager:
         self.started_at = datetime.now().isoformat()
         self.current_file: Optional[str] = None
         self.file_size_mb: float = 0.0
+        self.resolution: Optional[str] = None
+        self.last_online: Optional[str] = None
         self._lock = threading.Lock()
         self._state = self.STATE_STARTING
         
@@ -76,7 +78,9 @@ class StatusManager:
                 "last_heartbeat": datetime.now().isoformat(),
                 "current_file": self.current_file,
                 "file_size_mb": round(self.file_size_mb, 2),
-                "output_path": self.output_path
+                "output_path": self.output_path,
+                "resolution": self.resolution,
+                "last_online": self.last_online
             }
             
             # Retry mechanism for Windows file locking issues
@@ -146,6 +150,21 @@ class StatusManager:
     
     def heartbeat(self) -> None:
         """Update the heartbeat timestamp without changing state."""
+        self._write_status()
+    
+    def update_resolution(self, resolution: str) -> None:
+        """
+        Update the current recording resolution.
+        
+        Args:
+            resolution: Resolution string (e.g., "1080x1920")
+        """
+        self.resolution = resolution
+        self._write_status()
+    
+    def set_live_detected(self) -> None:
+        """Update last_online timestamp when user is detected as live."""
+        self.last_online = datetime.now().isoformat()
         self._write_status()
     
     def set_stopped(self) -> None:
