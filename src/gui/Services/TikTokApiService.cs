@@ -200,12 +200,18 @@ namespace TikTokRecorderGui.Services
             if (urlList == null || !urlList.HasValues)
                 return null;
 
+            string fallbackUrl = null;
+
             // Try to find a JPEG/PNG URL first (avoid WebP which .NET 4.0 can't decode)
             foreach (var url in urlList)
             {
                 var urlStr = url.Value<string>();
                 if (string.IsNullOrEmpty(urlStr))
                     continue;
+
+                // Store first URL as fallback
+                if (fallbackUrl == null)
+                    fallbackUrl = urlStr;
 
                 // Prefer non-WebP formats
                 if (!urlStr.Contains("webp") && !urlStr.Contains(".webp"))
@@ -215,10 +221,47 @@ namespace TikTokRecorderGui.Services
                 }
             }
 
-            // If all are WebP, try the first one anyway (might get converted on server)
-            var firstUrl = urlList[0].Value<string>();
-            Console.WriteLine("[TikTokApi] FindBestImageUrl: Only WebP available, trying: " + firstUrl);
-            return firstUrl;
+            // If all are WebP, try to convert the URL to request JPEG format
+            if (!string.IsNullOrEmpty(fallbackUrl))
+            {
+                var convertedUrl = ConvertToJpegUrl(fallbackUrl);
+                Console.WriteLine("[TikTokApi] FindBestImageUrl: Converted WebP URL to: " + convertedUrl);
+                return convertedUrl;
+            }
+
+            return fallbackUrl;
+        }
+
+        /// <summary>
+        /// Attempts to convert a TikTok CDN WebP URL to request JPEG format.
+        /// TikTok's CDN often supports format conversion via URL parameters.
+        /// </summary>
+        private string ConvertToJpegUrl(string url)
+        {
+            if (string.IsNullOrEmpty(url))
+                return url;
+
+            // Try common TikTok CDN URL modifications
+            // 1. Replace format parameter if present
+            var result = url;
+
+            // Replace ~webp or /webp/ with jpeg
+            result = Regex.Replace(result, @"~webp", "~jpeg", RegexOptions.IgnoreCase);
+            result = Regex.Replace(result, @"/webp/", "/jpeg/", RegexOptions.IgnoreCase);
+            
+            // Replace format=webp with format=jpeg
+            result = Regex.Replace(result, @"format=webp", "format=jpeg", RegexOptions.IgnoreCase);
+            
+            // Replace .webp extension with .jpeg if at end of path (before query string)
+            result = Regex.Replace(result, @"\.webp(\?|$)", ".jpeg$1", RegexOptions.IgnoreCase);
+
+            // If URL contains image_format parameter, modify it
+            if (result.Contains("image_format="))
+            {
+                result = Regex.Replace(result, @"image_format=\w+", "image_format=jpeg", RegexOptions.IgnoreCase);
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -244,6 +287,18 @@ namespace TikTokRecorderGui.Services
                     
                     var bytes = client.DownloadData(url);
                     Console.WriteLine("[TikTokApi] GetThumbnail: Downloaded " + bytes.Length + " bytes");
+                    
+                    // Check if the response is WebP by looking at magic bytes
+                    // WebP files start with "RIFF" followed by file size, then "WEBP"
+                    bool isWebP = bytes.Length > 12 && 
+                                  bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F' &&
+                                  bytes[8] == 'W' && bytes[9] == 'E' && bytes[10] == 'B' && bytes[11] == 'P';
+                    
+                    if (isWebP)
+                    {
+                        Console.WriteLine("[TikTokApi] GetThumbnail: Received WebP format, .NET 4.0 cannot decode");
+                        return null;
+                    }
                     
                     using (var ms = new MemoryStream(bytes))
                     {
