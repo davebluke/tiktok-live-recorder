@@ -181,7 +181,6 @@ namespace TikTokRecorderGui
                 // Get usernames from status files (on background thread)
                 var statuses = _statusService.GetAllStatuses();
                 var usernames = statuses
-                    .Where(s => !s.IsStale && s.AgeSeconds < 3600)
                     .Select(s => s.Username)
                     .Distinct()
                     .ToList();
