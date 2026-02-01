@@ -151,15 +151,29 @@ namespace TikTokRecorderGui.Controls
                 panelStatusIndicator.BackColor = Color.LimeGreen;
                 lblStatus.Text = "🔴 RECORDING";
                 lblStatus.ForeColor = Color.LimeGreen;
+                // Add yellow border highlight for recording
+                panelMain.BackColor = Color.FromArgb(60, 60, 20);
+                this.BorderStyle = BorderStyle.None;
+                this.Padding = new Padding(3);
+                this.BackColor = Color.Gold;
             }
             else if (_isLive)
             {
                 panelStatusIndicator.BackColor = Color.Red;
                 lblStatus.Text = "🔴 LIVE";
                 lblStatus.ForeColor = Color.Red;
+                // Reset border for non-recording
+                this.Padding = new Padding(0);
+                this.BackColor = Color.Transparent;
+                panelMain.BackColor = Color.FromArgb(45, 45, 50);
             }
             else
             {
+                // Reset border for non-recording
+                this.Padding = new Padding(0);
+                this.BackColor = Color.Transparent;
+                panelMain.BackColor = Color.FromArgb(45, 45, 50);
+                
                 switch (_state)
                 {
                     case "WAITING":

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
@@ -92,6 +93,21 @@ namespace TikTokRecorderGui.Services
                         {
                             liveInfo.AvatarUrl = FindBestImageUrl(avatarThumb["url_list"]);
                             Console.WriteLine("[TikTokApi] GetLiveInfo: Got avatar URL for " + username + ": " + liveInfo.AvatarUrl);
+                        }
+                    }
+
+                    // Also try avatar_large which often has better quality
+                    if (data["owner"] != null && data["owner"]["avatar_large"] != null)
+                    {
+                        var avatarLarge = data["owner"]["avatar_large"];
+                        if (avatarLarge["url_list"] != null && avatarLarge["url_list"].HasValues)
+                        {
+                            var largeUrl = FindBestImageUrl(avatarLarge["url_list"]);
+                            if (!string.IsNullOrEmpty(largeUrl))
+                            {
+                                liveInfo.AvatarUrl = largeUrl;
+                                Console.WriteLine("[TikTokApi] GetLiveInfo: Got large avatar URL for " + username + ": " + liveInfo.AvatarUrl);
+                            }
                         }
                     }
 
@@ -266,6 +282,7 @@ namespace TikTokRecorderGui.Services
 
         /// <summary>
         /// Downloads a thumbnail image from URL.
+        /// Tries multiple URL variations to get a decodable format.
         /// </summary>
         public Image GetThumbnail(string url)
         {
@@ -275,47 +292,69 @@ namespace TikTokRecorderGui.Services
                 return null;
             }
 
-            Console.WriteLine("[TikTokApi] GetThumbnail: Downloading from " + url);
-
-            try
+            // Try multiple URL variations
+            var urlsToTry = new List<string>
             {
-                using (var client = CreateClient())
+                url,
+                ConvertToJpegUrl(url),
+                // Add format parameter if not present
+                url.Contains("?") ? url + "&format=jpeg" : url + "?format=jpeg",
+                // Try with different TikTok CDN format parameters
+                Regex.Replace(url, @"(p\d+\.)?tiktokcdn\.com", "p16-sign-sg.tiktokcdn.com", RegexOptions.IgnoreCase)
+            };
+
+            Console.WriteLine("[TikTokApi] GetThumbnail: Trying " + urlsToTry.Count + " URL variations for image");
+
+            foreach (var tryUrl in urlsToTry)
+            {
+                try
                 {
-                    // For image downloads, we need different Accept headers
-                    // Request JPEG/PNG first since .NET 4.0 doesn't support WebP natively
-                    client.Headers[HttpRequestHeader.Accept] = "image/jpeg,image/png,image/gif,image/*;q=0.8,*/*;q=0.5";
-                    
-                    var bytes = client.DownloadData(url);
-                    Console.WriteLine("[TikTokApi] GetThumbnail: Downloaded " + bytes.Length + " bytes");
-                    
-                    // Check if the response is WebP by looking at magic bytes
-                    // WebP files start with "RIFF" followed by file size, then "WEBP"
-                    bool isWebP = bytes.Length > 12 && 
-                                  bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F' &&
-                                  bytes[8] == 'W' && bytes[9] == 'E' && bytes[10] == 'B' && bytes[11] == 'P';
-                    
-                    if (isWebP)
+                    using (var client = CreateClient())
                     {
-                        Console.WriteLine("[TikTokApi] GetThumbnail: Received WebP format, .NET 4.0 cannot decode");
-                        return null;
-                    }
-                    
-                    using (var ms = new MemoryStream(bytes))
-                    {
-                        // Create a copy of the image so the stream can be disposed
-                        using (var original = Image.FromStream(ms))
+                        // For image downloads, we need different Accept headers
+                        // Request JPEG/PNG first since .NET 4.0 doesn't support WebP natively
+                        client.Headers[HttpRequestHeader.Accept] = "image/jpeg,image/png,image/gif,image/*;q=0.8,*/*;q=0.5";
+                        
+                        var bytes = client.DownloadData(tryUrl);
+                        
+                        if (bytes.Length < 100)
                         {
-                            Console.WriteLine("[TikTokApi] GetThumbnail: Image loaded successfully, size " + original.Width + "x" + original.Height);
-                            return new Bitmap(original);
+                            Console.WriteLine("[TikTokApi] GetThumbnail: Response too small (" + bytes.Length + " bytes), skipping");
+                            continue;
+                        }
+                        
+                        // Check if the response is WebP by looking at magic bytes
+                        // WebP files start with "RIFF" followed by file size, then "WEBP"
+                        bool isWebP = bytes.Length > 12 && 
+                                      bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F' &&
+                                      bytes[8] == 'W' && bytes[9] == 'E' && bytes[10] == 'B' && bytes[11] == 'P';
+                        
+                        if (isWebP)
+                        {
+                            Console.WriteLine("[TikTokApi] GetThumbnail: URL returned WebP format, trying next variation");
+                            continue;
+                        }
+                        
+                        using (var ms = new MemoryStream(bytes))
+                        {
+                            // Create a copy of the image so the stream can be disposed
+                            using (var original = Image.FromStream(ms))
+                            {
+                                Console.WriteLine("[TikTokApi] GetThumbnail: Image loaded successfully, size " + original.Width + "x" + original.Height);
+                                return new Bitmap(original);
+                            }
                         }
                     }
                 }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("[TikTokApi] GetThumbnail: Error with URL variation: " + ex.Message);
+                    // Continue to try next URL
+                }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine("[TikTokApi] GetThumbnail ERROR: " + ex.Message);
-                return null;
-            }
+
+            Console.WriteLine("[TikTokApi] GetThumbnail: All URL variations failed");
+            return null;
         }
 
         /// <summary>
