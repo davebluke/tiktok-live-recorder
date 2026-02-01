@@ -12,3 +12,15 @@ C:\Amer2024\github-clones\tiktok4e\tiktok-live-recorder\src\gui\obj\Debug\TikTok
 C:\Amer2024\github-clones\tiktok4e\tiktok-live-recorder\src\gui\obj\Debug\TikTokRecorderGui.pdb
 C:\Amer2024\github-clones\tiktok4e\tiktok-live-recorder\src\gui\obj\Debug\TikTokRecorderGui.exe.config
 C:\Amer2024\github-clones\tiktok4e\tiktok-live-recorder\src\gui\obj\Debug\TikTokRe.764930DC.Up2Date
+D:\3090-folder-2\tiktok04e\tiktok-live-recorder\src\gui\bin\Debug\TikTokRecorderGui.exe.config
+D:\3090-folder-2\tiktok04e\tiktok-live-recorder\src\gui\bin\Debug\TikTokRecorderGui.exe
+D:\3090-folder-2\tiktok04e\tiktok-live-recorder\src\gui\bin\Debug\TikTokRecorderGui.pdb
+D:\3090-folder-2\tiktok04e\tiktok-live-recorder\src\gui\bin\Debug\Newtonsoft.Json.xml
+D:\3090-folder-2\tiktok04e\tiktok-live-recorder\src\gui\obj\Debug\TikTokRecorderGui.csproj.AssemblyReference.cache
+D:\3090-folder-2\tiktok04e\tiktok-live-recorder\src\gui\obj\Debug\TikTokRecorderGui.MainForm.resources
+D:\3090-folder-2\tiktok04e\tiktok-live-recorder\src\gui\obj\Debug\TikTokRecorderGui.Properties.Resources.resources
+D:\3090-folder-2\tiktok04e\tiktok-live-recorder\src\gui\obj\Debug\TikTokRecorderGui.csproj.GenerateResource.cache
+D:\3090-folder-2\tiktok04e\tiktok-live-recorder\src\gui\obj\Debug\TikTokRecorderGui.csproj.CoreCompileInputs.cache
+D:\3090-folder-2\tiktok04e\tiktok-live-recorder\src\gui\obj\Debug\TikTokRe.764930DC.Up2Date
+D:\3090-folder-2\tiktok04e\tiktok-live-recorder\src\gui\obj\Debug\TikTokRecorderGui.exe
+D:\3090-folder-2\tiktok04e\tiktok-live-recorder\src\gui\obj\Debug\TikTokRecorderGui.pdb
