@@ -205,8 +205,41 @@ namespace TikTokRecorderGui
                         cardData.ViewerCount = liveInfo.ViewerCount;
                         cardData.Title = liveInfo.Title;
 
-                        // Try to get thumbnail from API, fall back to placeholder
-                        cardData.Thumbnail = _tikTokApi.GetUserThumbnail(username, liveInfo.ThumbnailUrl);
+                        // Thumbnail logic: show live thumbnail only for RECORDING models
+                        // For offline/waiting models, always show initials
+                        if (cardData.IsRecording)
+                        {
+                            // Try local thumbnail first (captured by Python recorder)
+                            var localThumbPath = Path.Combine(_statusDirectory, username + ".jpg");
+                            if (File.Exists(localThumbPath))
+                            {
+                                try
+                                {
+                                    // Load from file bytes to avoid locking
+                                    var bytes = File.ReadAllBytes(localThumbPath);
+                                    using (var ms = new MemoryStream(bytes))
+                                    {
+                                        cardData.Thumbnail = Image.FromStream(ms);
+                                        Console.WriteLine("[MainForm] Loaded local thumbnail for " + username);
+                                    }
+                                }
+                                catch (Exception imgEx)
+                                {
+                                    Console.WriteLine("[MainForm] Error loading local thumbnail: " + imgEx.Message);
+                                    cardData.Thumbnail = _tikTokApi.CreatePlaceholderImage(username);
+                                }
+                            }
+                            else
+                            {
+                                // Fallback: try API thumbnail for recording models
+                                cardData.Thumbnail = _tikTokApi.GetUserThumbnail(username, liveInfo.ThumbnailUrl);
+                            }
+                        }
+                        else
+                        {
+                            // Offline/waiting models always show initials
+                            cardData.Thumbnail = _tikTokApi.CreatePlaceholderImage(username);
+                        }
                     }
                     catch (Exception ex)
                     {

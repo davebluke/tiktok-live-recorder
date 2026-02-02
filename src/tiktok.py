@@ -32,6 +32,20 @@ except ImportError:
             def heartbeat(self): pass
             def set_stopped(self): pass
 
+# --- THUMBNAIL CAPTURER FOR LIVE STREAM SNAPSHOTS ---
+try:
+    from src.utils.thumbnail_capturer import ThumbnailCapturer
+except ImportError:
+    try:
+        from utils.thumbnail_capturer import ThumbnailCapturer
+    except ImportError:
+        # Fallback: create a dummy ThumbnailCapturer if not available
+        class ThumbnailCapturer:
+            def __init__(self, *args, **kwargs): pass
+            def start(self): pass
+            def stop(self): pass
+            def cleanup(self): pass
+
 # -------------------------------------------
 
 # ANSI Colors
@@ -54,6 +68,9 @@ class TikTok:
         
         # Initialize status manager for multi-instance monitoring
         self.status_manager = StatusManager(user, output_path=self.output)
+        
+        # Thumbnail capturer (initialized when recording starts)
+        self.thumbnail_capturer = None
         
         # Headers mimicking a real browser to avoid detection
         self.headers = {
@@ -358,7 +375,25 @@ class TikTok:
                         # Update status to RECORDING before starting
                         current_date = datetime.now().strftime("%Y.%m.%d_%H-%M-%S")
                         self.status_manager.set_recording(f"v02__{self.user}_{current_date}.mp4")
+                        
+                        # Start thumbnail capture in background
+                        try:
+                            self.thumbnail_capturer = ThumbnailCapturer(
+                                username=self.user,
+                                stream_url=stream_url,
+                                ffmpeg_path=self.ffmpeg,
+                                status_dir=self.status_manager.status_dir,  # Use same dir as status files
+                                capture_interval=60  # Update every 60 seconds
+                            )
+                            self.thumbnail_capturer.start()
+                        except Exception as thumb_err:
+                            print(f"[!] Thumbnail capture init failed: {thumb_err}")
+                        
                         status = self.start_recording(stream_url)
+                        
+                        # Stop thumbnail capture when recording ends
+                        if self.thumbnail_capturer:
+                            self.thumbnail_capturer.stop()
                         
                         # Handle different end statuses
                         if status == "MANUAL_STOP":
