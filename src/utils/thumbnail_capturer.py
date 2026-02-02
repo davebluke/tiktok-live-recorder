@@ -50,9 +50,12 @@ class ThumbnailCapturer:
         # Ensure status directory exists
         os.makedirs(status_dir, exist_ok=True)
     
-    def capture_once(self) -> bool:
+    def capture_once(self, is_first_try: bool = False) -> bool:
         """
         Capture a single frame from the stream.
+        
+        Args:
+            is_first_try: If True, use longer timeout for initial connection.
         
         Returns:
             True if capture succeeded, False otherwise.
@@ -62,11 +65,15 @@ class ThumbnailCapturer:
         
         print(f"[*] [Thumbnail] Attempting capture for {self.username} -> {self.output_path}")
         
+        # Use longer timeouts on first try to allow for slow stream connections
+        process_timeout = 30 if is_first_try else 20
+        network_timeout = "10000000"  # 10 second network timeout
+        
         cmd = [
             self.ffmpeg_path,
             "-y",  # Overwrite output
             "-loglevel", "warning",  # Show warnings too for debugging
-            "-rw_timeout", "5000000",  # 5 second timeout
+            "-rw_timeout", network_timeout,  # Network read/write timeout (microseconds)
             "-i", self.stream_url,
             "-vframes", "1",  # Capture 1 frame
             "-q:v", "2",  # High quality JPEG
@@ -79,7 +86,7 @@ class ThumbnailCapturer:
             result = subprocess.run(
                 cmd,
                 capture_output=True,
-                timeout=15,
+                timeout=process_timeout,
                 encoding="utf-8",
                 errors="replace"
             )
@@ -109,7 +116,7 @@ class ThumbnailCapturer:
                 print(f"[!] [Thumbnail] Temp file not created")
                     
         except subprocess.TimeoutExpired:
-            print(f"[!] [Thumbnail] Capture timed out for {self.username}")
+            print(f"[!] [Thumbnail] Capture timed out for {self.username} (timeout={process_timeout}s)")
         except Exception as e:
             print(f"[!] [Thumbnail] Capture error for {self.username}: {e}")
         
@@ -124,16 +131,32 @@ class ThumbnailCapturer:
     
     def _capture_loop(self):
         """Background thread loop for periodic capture."""
-        # Initial capture immediately
-        self.capture_once()
+        # Initial capture with retry logic
+        try:
+            success = self.capture_once(is_first_try=True)
+            if not success:
+                # Retry once with a short delay on first capture failure
+                print(f"[*] [Thumbnail] Retrying initial capture for {self.username}...")
+                time.sleep(3)
+                self.capture_once(is_first_try=True)
+        except Exception as e:
+            print(f"[!] [Thumbnail] Initial capture exception for {self.username}: {e}")
         
         while not self._stop_event.is_set():
-            # Wait for interval or stop signal
-            if self._stop_event.wait(timeout=self.capture_interval):
-                break  # Stop signal received
-            
-            # Capture thumbnail
-            self.capture_once()
+            try:
+                # Wait for interval or stop signal
+                if self._stop_event.wait(timeout=self.capture_interval):
+                    break  # Stop signal received
+                
+                # Capture thumbnail (wrapped in try/except to ensure loop continues)
+                try:
+                    self.capture_once(is_first_try=False)
+                except Exception as e:
+                    print(f"[!] [Thumbnail] Periodic capture exception for {self.username}: {e}")
+            except Exception as loop_err:
+                print(f"[!] [Thumbnail] Loop error for {self.username}: {loop_err}")
+                # Don't let the loop die - sleep and continue
+                time.sleep(5)
     
     def start(self):
         """Start background thumbnail capture thread."""
