@@ -66,14 +66,21 @@ class ThumbnailCapturer:
         print(f"[*] [Thumbnail] Attempting capture for {self.username} -> {self.output_path}")
         
         # Use longer timeouts on first try to allow for slow stream connections
-        process_timeout = 30 if is_first_try else 20
-        network_timeout = "10000000"  # 10 second network timeout
+        process_timeout = 45 if is_first_try else 25
+        network_timeout = "15000000"  # 15 second network timeout (microseconds)
         
         cmd = [
             self.ffmpeg_path,
             "-y",  # Overwrite output
             "-loglevel", "warning",  # Show warnings too for debugging
-            "-rw_timeout", network_timeout,  # Network read/write timeout (microseconds)
+            # Network handling options for slow TikTok streams
+            "-reconnect", "1",
+            "-reconnect_streamed", "1",
+            "-reconnect_delay_max", "5",
+            "-rw_timeout", network_timeout,
+            # Longer probe for slow streams
+            "-analyzeduration", "20000000",  # 20 seconds
+            "-probesize", "10000000",  # 10MB
             "-i", self.stream_url,
             "-vframes", "1",  # Capture 1 frame
             "-q:v", "2",  # High quality JPEG
