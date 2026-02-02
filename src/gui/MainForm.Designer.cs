@@ -41,6 +41,7 @@ namespace TikTokRecorderGui
             this.lblSnapshotRefresh = new System.Windows.Forms.Label();
             this.cmbRefreshInterval = new System.Windows.Forms.ComboBox();
             this.btnRefreshNow = new System.Windows.Forms.Button();
+            this.chkShowRecordingOnly = new System.Windows.Forms.CheckBox();
             this.panelLiveFooter = new System.Windows.Forms.Panel();
             this.lblLiveDiskSpace = new System.Windows.Forms.Label();
             this.panelHeader = new System.Windows.Forms.Panel();
@@ -223,6 +224,7 @@ namespace TikTokRecorderGui
             this.panelLiveHeader.Controls.Add(this.lblSnapshotRefresh);
             this.panelLiveHeader.Controls.Add(this.cmbRefreshInterval);
             this.panelLiveHeader.Controls.Add(this.btnRefreshNow);
+            this.panelLiveHeader.Controls.Add(this.chkShowRecordingOnly);
             this.panelLiveHeader.Dock = System.Windows.Forms.DockStyle.Top;
             this.panelLiveHeader.Location = new System.Drawing.Point(3, 3);
             this.panelLiveHeader.Name = "panelLiveHeader";
@@ -262,6 +264,20 @@ namespace TikTokRecorderGui
             this.btnRefreshNow.Text = "🔄 Refresh";
             this.btnRefreshNow.UseVisualStyleBackColor = false;
             this.btnRefreshNow.Click += new System.EventHandler(this.btnRefreshNow_Click);
+
+            // chkShowRecordingOnly
+            this.chkShowRecordingOnly.AutoSize = true;
+            this.chkShowRecordingOnly.Checked = true;
+            this.chkShowRecordingOnly.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.chkShowRecordingOnly.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.chkShowRecordingOnly.ForeColor = System.Drawing.Color.LightGray;
+            this.chkShowRecordingOnly.Location = new System.Drawing.Point(385, 12);
+            this.chkShowRecordingOnly.Name = "chkShowRecordingOnly";
+            this.chkShowRecordingOnly.Size = new System.Drawing.Size(170, 19);
+            this.chkShowRecordingOnly.TabIndex = 3;
+            this.chkShowRecordingOnly.Text = "Only show recording models";
+            this.chkShowRecordingOnly.UseVisualStyleBackColor = true;
+            this.chkShowRecordingOnly.CheckedChanged += new System.EventHandler(this.chkShowRecordingOnly_CheckedChanged);
 
             // panelLiveFooter
             this.panelLiveFooter.BackColor = System.Drawing.Color.FromArgb(35, 35, 42);
@@ -382,6 +398,7 @@ namespace TikTokRecorderGui
         private System.Windows.Forms.Label lblSnapshotRefresh;
         private System.Windows.Forms.ComboBox cmbRefreshInterval;
         private System.Windows.Forms.Button btnRefreshNow;
+        private System.Windows.Forms.CheckBox chkShowRecordingOnly;
         private System.Windows.Forms.Panel panelLiveFooter;
         private System.Windows.Forms.Label lblLiveDiskSpace;
         private System.Windows.Forms.Timer refreshTimer;

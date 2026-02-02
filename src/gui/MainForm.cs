@@ -313,6 +313,9 @@ namespace TikTokRecorderGui
             {
                 card.SetSnapshot(data.Thumbnail);
             }
+
+            // Apply filter
+            ApplyRecordingFilter(card);
         }
 
         private void refreshTimer_Tick(object sender, EventArgs e)
@@ -356,6 +359,29 @@ namespace TikTokRecorderGui
         private void btnRefreshNow_Click(object sender, EventArgs e)
         {
             LoadLiveModels();
+        }
+
+        private void chkShowRecordingOnly_CheckedChanged(object sender, EventArgs e)
+        {
+            // Apply filter to all existing cards
+            foreach (var card in _modelCards.Values)
+            {
+                ApplyRecordingFilter(card);
+            }
+        }
+
+        private void ApplyRecordingFilter(LiveModelCard card)
+        {
+            if (chkShowRecordingOnly.Checked)
+            {
+                // Only show recording models
+                card.Visible = card.IsRecording;
+            }
+            else
+            {
+                // Show all models
+                card.Visible = true;
+            }
         }
 
         private void btnSettings_Click(object sender, EventArgs e)
