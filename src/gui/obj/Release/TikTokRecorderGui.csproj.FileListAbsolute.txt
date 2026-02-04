@@ -10,5 +10,4 @@ C:\Amer2024\github-clones\tiktok4e\tiktok-live-recorder\src\gui\obj\Release\TikT
 C:\Amer2024\github-clones\tiktok4e\tiktok-live-recorder\src\gui\obj\Release\TikTokRecorderGui.csproj.CoreCompileInputs.cache
 C:\Amer2024\github-clones\tiktok4e\tiktok-live-recorder\src\gui\obj\Release\TikTokRecorderGui.exe
 C:\Amer2024\github-clones\tiktok4e\tiktok-live-recorder\src\gui\obj\Release\TikTokRecorderGui.pdb
-C:\Amer2024\github-clones\tiktok4e\tiktok-live-recorder\src\gui\obj\Release\TikTokRecorderGui.exe.config
 C:\Amer2024\github-clones\tiktok4e\tiktok-live-recorder\src\gui\obj\Release\TikTokRe.764930DC.Up2Date
